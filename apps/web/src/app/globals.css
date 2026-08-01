@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #15161c;
+  color: #f2f2f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+}
+
+::selection {
+  background-color: #6366f155;
+}
+
+.discord-modal-input {
+  background-color: #1e1f27;
+  border: 1px solid #3a3b45;
+}

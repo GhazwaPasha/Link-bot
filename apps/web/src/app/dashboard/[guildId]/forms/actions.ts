@@ -1,0 +1,25 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/db";
+import { requireGuildAccess } from "@/lib/guildAccess";
+
+export async function createFormAction(formData: FormData) {
+  const guildId = String(formData.get("guildId"));
+  const name = String(formData.get("name") ?? "").trim();
+  await requireGuildAccess(guildId);
+  if (!name) return;
+
+  await prisma.guild.upsert({ where: { guildId }, update: {}, create: { guildId } });
+  const form = await prisma.form.create({ data: { guildId, name, fields: [] } });
+  redirect(`/dashboard/${guildId}/forms/${form.id}`);
+}
+
+export async function deleteFormAction(formData: FormData) {
+  const guildId = String(formData.get("guildId"));
+  const formId = String(formData.get("formId"));
+  await requireGuildAccess(guildId);
+  await prisma.form.delete({ where: { id: formId } });
+  revalidatePath(`/dashboard/${guildId}/forms`);
+}

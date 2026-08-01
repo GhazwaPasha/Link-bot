@@ -1,0 +1,14 @@
+{
+  "name": "discord-forms",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev:bot": "pnpm --filter @discord-forms/bot dev",
+    "dev:web": "pnpm --filter @discord-forms/web dev",
+    "build": "pnpm --filter @discord-forms/db build && pnpm --filter @discord-forms/bot build && pnpm --filter @discord-forms/web build",
+    "db:generate": "pnpm --filter @discord-forms/db generate",
+    "db:migrate": "pnpm --filter @discord-forms/db migrate",
+    "db:studio": "pnpm --filter @discord-forms/db studio"
+  },
+  "packageManager": "pnpm@9.0.0"
+}
