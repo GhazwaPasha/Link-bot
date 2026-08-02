@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { createFormAction, deleteFormAction } from "./actions";
-import { Input } from "@/components/ui/input";
+import { deleteFormAction } from "./actions";
+import { CreateFormDialog } from "@/components/CreateFormDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, FileText } from "lucide-react";
+import { Trash2, FileText } from "lucide-react";
 
 export default async function FormsListPage({ params }: { params: { guildId: string } }) {
   const forms = await prisma.form.findMany({
@@ -17,14 +17,7 @@ export default async function FormsListPage({ params }: { params: { guildId: str
     <main className="p-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Forms</h1>
-        <form action={createFormAction} className="flex gap-2">
-          <input type="hidden" name="guildId" value={params.guildId} />
-          <Input name="name" placeholder="New form name" required className="w-56" />
-          <Button type="submit">
-            <Plus className="h-4 w-4" />
-            New Form
-          </Button>
-        </form>
+        <CreateFormDialog guildId={params.guildId} />
       </div>
 
       {forms.length === 0 && (
@@ -46,7 +39,7 @@ export default async function FormsListPage({ params }: { params: { guildId: str
               </div>
               <p className="text-xs text-muted">Created {form.createdAt.toLocaleDateString()}</p>
             </Link>
-            <form action={deleteFormAction} className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
+            <form action={deleteFormAction} className="absolute bottom-3 right-3 opacity-0 transition-opacity group-hover:opacity-100">
               <input type="hidden" name="guildId" value={params.guildId} />
               <input type="hidden" name="formId" value={form.id} />
               <Button type="submit" variant="ghost" size="icon" className="h-7 w-7 text-muted hover:text-destructive" title="Delete form">

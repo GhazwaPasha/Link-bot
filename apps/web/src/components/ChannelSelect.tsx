@@ -10,6 +10,23 @@ interface Channel {
   name: string;
 }
 
+// Shared across every mounted ChannelSelect for a guild so N inputs on one page (e.g. Review +
+// Output channel) issue one request instead of racing Discord's rate limit with N parallel calls.
+const channelFetchCache = new Map<string, Promise<Channel[]>>();
+
+function fetchGuildChannels(guildId: string): Promise<Channel[]> {
+  let promise = channelFetchCache.get(guildId);
+  if (!promise) {
+    promise = fetch(`/api/guilds/${guildId}/channels`).then((res) => {
+      if (!res.ok) throw new Error(`Failed to load channels (${res.status})`);
+      return res.json();
+    });
+    channelFetchCache.set(guildId, promise);
+    promise.catch(() => channelFetchCache.delete(guildId));
+  }
+  return promise;
+}
+
 export function ChannelSelect({
   guildId,
   value,
@@ -25,13 +42,19 @@ export function ChannelSelect({
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/guilds/${guildId}/channels`)
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
+    let cancelled = false;
+    setChannels(null);
+    setFailed(false);
+    fetchGuildChannels(guildId)
+      .then((data) => {
+        if (!cancelled) setChannels(data);
       })
-      .then(setChannels)
-      .catch(() => setFailed(true));
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [guildId]);
 
   if (failed) {

@@ -13,7 +13,7 @@ export async function getGuildTextChannels(guildId: string): Promise<DiscordChan
 
   const res = await fetch(`https://discord.com/api/guilds/${guildId}/channels`, {
     headers: { Authorization: `Bot ${botToken}` },
-    cache: "no-store",
+    next: { revalidate: 30 },
   });
   if (!res.ok) {
     throw new Error(`Failed to fetch channels: ${res.status}`);
@@ -34,7 +34,7 @@ export async function getGuildRoles(guildId: string): Promise<DiscordRole[]> {
 
   const res = await fetch(`https://discord.com/api/guilds/${guildId}/roles`, {
     headers: { Authorization: `Bot ${botToken}` },
-    cache: "no-store",
+    next: { revalidate: 30 },
   });
   if (!res.ok) {
     throw new Error(`Failed to fetch roles: ${res.status}`);

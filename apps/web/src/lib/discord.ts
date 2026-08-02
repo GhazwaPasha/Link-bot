@@ -14,7 +14,7 @@ const BOT_PERMISSIONS = "85016";
 export async function fetchUserGuilds(accessToken: string): Promise<DiscordGuild[]> {
   const res = await fetch("https://discord.com/api/users/@me/guilds", {
     headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
+    next: { revalidate: 30 },
   });
   if (!res.ok) {
     throw new Error(`Failed to fetch Discord guilds: ${res.status}`);
