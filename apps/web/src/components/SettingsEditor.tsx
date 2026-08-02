@@ -46,6 +46,7 @@ export function SettingsEditor({
   );
   const [savingIntegration, setSavingIntegration] = useState<"WEBHOOK" | "SHEETS" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [integrationError, setIntegrationError] = useState<{ type: "WEBHOOK" | "SHEETS"; message: string } | null>(null);
 
   async function saveGeneral() {
     setSavingGeneral(true);
@@ -61,14 +62,25 @@ export function SettingsEditor({
 
   async function saveIntegration(type: "WEBHOOK" | "SHEETS") {
     setSavingIntegration(type);
-    const config = type === "WEBHOOK" ? { url: webhook.url, secret: webhook.secret } : sheets;
+    setIntegrationError(null);
+    // config must be string-only (the API validates it with z.record(z.string())) — never spread
+    // the whole webhook/sheets state in here, since both carry a boolean `enabled` field alongside it.
+    const config =
+      type === "WEBHOOK"
+        ? { url: webhook.url, secret: webhook.secret }
+        : { spreadsheetId: sheets.spreadsheetId, sheetName: sheets.sheetName, serviceAccountJson: sheets.serviceAccountJson };
     const enabled = type === "WEBHOOK" ? webhook.enabled : sheets.enabled;
-    await fetch(`/api/forms/${formId}/integrations`, {
+    const res = await fetch(`/api/forms/${formId}/integrations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, enabled, config }),
     });
     setSavingIntegration(null);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setIntegrationError({ type, message: body.error ?? "Failed to save." });
+      return;
+    }
     setMessage("Saved.");
   }
 
@@ -144,6 +156,7 @@ export function SettingsEditor({
             <Switch checked={webhook.enabled} onCheckedChange={(c) => setWebhook({ ...webhook, enabled: c })} />
             Enabled
           </label>
+          {integrationError?.type === "WEBHOOK" && <p className="text-sm text-destructive">{integrationError.message}</p>}
           <Button
             variant="outline"
             size="sm"
@@ -181,6 +194,7 @@ export function SettingsEditor({
             <Switch checked={sheets.enabled} onCheckedChange={(c) => setSheets({ ...sheets, enabled: c })} />
             Enabled
           </label>
+          {integrationError?.type === "SHEETS" && <p className="text-sm text-destructive">{integrationError.message}</p>}
           <Button
             variant="outline"
             size="sm"
