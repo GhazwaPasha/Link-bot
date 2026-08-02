@@ -161,15 +161,20 @@ export async function handleSessionContinue(interaction: ButtonInteraction, sess
 }
 
 export async function handleSessionModalSubmit(interaction: ModalSubmitInteraction, sessionId: string) {
+  // Ack immediately — finalizeSubmission does a DB write plus (on the review
+  // path) a channel fetch/send, which can blow past Discord's 3s deadline
+  // (code 10062 "Unknown interaction") if we wait until the end to respond.
+  await interaction.deferReply({ ephemeral: true });
+
   const session = getSession(sessionId);
   if (!session) {
-    await interaction.reply({ content: "This form session expired — please click the button again.", ephemeral: true });
+    await interaction.editReply({ content: "This form session expired — please click the button again." });
     return;
   }
 
   const form = await prisma.form.findUnique({ where: { id: session.formId } });
   if (!form || form.status !== "PUBLISHED") {
-    await interaction.reply({ content: "This form is no longer available.", ephemeral: true });
+    await interaction.editReply({ content: "This form is no longer available." });
     deleteSession(sessionId);
     return;
   }

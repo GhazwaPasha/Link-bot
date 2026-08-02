@@ -35,7 +35,9 @@ async function respond(
   interaction: ButtonInteraction | ModalSubmitInteraction | AnySelectMenuInteraction,
   payload: { content: string },
 ) {
-  if (interaction.replied || interaction.deferred) {
+  if (interaction.deferred && !interaction.replied) {
+    await interaction.editReply(payload);
+  } else if (interaction.replied) {
     await interaction.followUp({ ...payload, ephemeral: true });
   } else {
     await interaction.reply({ ...payload, ephemeral: true });
@@ -97,19 +99,23 @@ async function canReview(interaction: ButtonInteraction): Promise<boolean> {
 }
 
 async function resolveReviewDecision(interaction: ButtonInteraction, submissionId: string, approve: boolean) {
+  // Ack immediately — the permission check and the DB round-trips below can
+  // easily blow past Discord's 3s interaction deadline (code 10062) otherwise.
+  await interaction.deferUpdate();
+
   const allowed = await canReview(interaction);
   if (!allowed) {
-    await interaction.reply({ content: "You don't have permission to review submissions.", ephemeral: true });
+    await interaction.followUp({ content: "You don't have permission to review submissions.", ephemeral: true });
     return;
   }
 
   const submission = await prisma.submission.findUnique({ where: { id: submissionId }, include: { form: true } });
   if (!submission) {
-    await interaction.reply({ content: "Submission not found.", ephemeral: true });
+    await interaction.followUp({ content: "Submission not found.", ephemeral: true });
     return;
   }
   if (submission.status !== "PENDING") {
-    await interaction.reply({ content: "This submission has already been reviewed.", ephemeral: true });
+    await interaction.followUp({ content: "This submission has already been reviewed.", ephemeral: true });
     return;
   }
 
@@ -127,7 +133,7 @@ async function resolveReviewDecision(interaction: ButtonInteraction, submissionI
     text: `${approve ? "Approved" : "Rejected"} by ${interaction.user.tag}`,
   });
 
-  await interaction.update({ embeds: [embed], components: [] });
+  await interaction.editReply({ embeds: [embed], components: [] });
 
   if (approve) {
     await postOutput(interaction, submission.form, embed);

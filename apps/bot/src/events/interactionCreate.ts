@@ -36,8 +36,15 @@ export function registerInteractionCreate(client: BotClient) {
       }
     } catch (err) {
       console.error("Error handling interaction:", err);
-      if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: "Something went wrong handling that.", ephemeral: true }).catch(() => undefined);
+      if (!interaction.isRepliable()) return;
+
+      const payload = { content: "Something went wrong handling that.", ephemeral: true };
+      if (interaction.deferred && !interaction.replied) {
+        await interaction.editReply(payload).catch(() => undefined);
+      } else if (interaction.replied) {
+        await interaction.followUp(payload).catch(() => undefined);
+      } else {
+        await interaction.reply(payload).catch(() => undefined);
       }
     }
   });
