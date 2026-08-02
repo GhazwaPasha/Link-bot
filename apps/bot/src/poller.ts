@@ -15,12 +15,12 @@ export function startPanelPoller(client: BotClient) {
     try {
       const pendingPanels = await prisma.panel.findMany({
         where: { messageId: null },
-        include: { form: true },
+        include: { buttons: { orderBy: { sortOrder: "asc" } } },
       });
 
       for (const panel of pendingPanels) {
         try {
-          await postPanelMessage(client, panel, panel.form);
+          await postPanelMessage(client, panel);
         } catch (err) {
           console.error(`[poller] failed to post panel ${panel.id}:`, err);
         }

@@ -1,13 +1,26 @@
 "use client";
 
+const STYLE_COLOR: Record<string, string> = {
+  PRIMARY: "#5865F2",
+  SECONDARY: "#4e5058",
+  SUCCESS: "#248046",
+  DANGER: "#da373c",
+};
+
+export interface PreviewButton {
+  label: string;
+  style: "PRIMARY" | "SECONDARY" | "SUCCESS" | "DANGER";
+  emoji?: string;
+}
+
 export function DiscordChannelPreview({
-  formName,
+  name,
   description,
-  buttonLabel,
+  buttons,
 }: {
-  formName: string;
+  name: string;
   description?: string;
-  buttonLabel: string;
+  buttons: PreviewButton[];
 }) {
   return (
     <div className="w-full max-w-sm overflow-hidden rounded-lg border border-[#3a3b45] bg-[#313338]">
@@ -28,13 +41,24 @@ export function DiscordChannelPreview({
           </div>
 
           <div className="mt-1.5 rounded border-l-4 border-accent bg-[#2b2d31] p-3">
-            <p className="text-sm font-semibold text-white">{formName || "Untitled form"}</p>
+            <p className="text-sm font-semibold text-white">{name || "Untitled panel"}</p>
             {description && <p className="mt-1 text-xs text-[#b5bac1]">{description}</p>}
           </div>
 
-          <button disabled className="mt-2 rounded bg-accent px-4 py-1.5 text-sm font-medium text-white opacity-90">
-            {buttonLabel || "Submit"}
-          </button>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {buttons.length === 0 && <p className="text-xs text-[#6d6f78]">Add a button to see it here.</p>}
+            {buttons.map((b, i) => (
+              <button
+                key={i}
+                disabled
+                style={{ backgroundColor: STYLE_COLOR[b.style] }}
+                className="rounded px-4 py-1.5 text-sm font-medium text-white opacity-90"
+              >
+                {b.emoji && <span className="mr-1.5">{b.emoji}</span>}
+                {b.label || "Submit"}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

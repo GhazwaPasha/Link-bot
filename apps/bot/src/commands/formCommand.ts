@@ -118,9 +118,15 @@ async function execute(interaction: ChatInputCommandInteraction) {
 
     await interaction.deferReply({ ephemeral: true });
     const panel = await prisma.panel.create({
-      data: { guildId: interaction.guildId, formId: form.id, postChannelId: channel.id, buttonLabel },
+      data: {
+        guildId: interaction.guildId,
+        name: form.name,
+        postChannelId: channel.id,
+        buttons: { create: [{ formId: form.id, label: buttonLabel }] },
+      },
+      include: { buttons: true },
     });
-    await postPanelMessage(interaction.client, panel, form);
+    await postPanelMessage(interaction.client, panel);
     await interaction.editReply({ content: `Panel posted in <#${channel.id}>.` });
     return;
   }

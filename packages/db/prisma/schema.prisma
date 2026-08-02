@@ -25,6 +25,13 @@ enum IntegrationType {
   WEBHOOK
 }
 
+enum PanelButtonStyle {
+  PRIMARY
+  SECONDARY
+  SUCCESS
+  DANGER
+}
+
 model Guild {
   guildId       String   @id @map("guild_id")
   name          String?
@@ -56,7 +63,7 @@ model Form {
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
   guild        Guild         @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
-  panels       Panel[]
+  panelButtons PanelButton[]
   submissions  Submission[]
   integrations Integration[]
 
@@ -67,19 +74,36 @@ model Form {
 model Panel {
   id            String   @id @default(cuid())
   guildId       String   @map("guild_id")
-  formId        String   @map("form_id")
+  name          String
+  description   String?
   postChannelId String   @map("post_channel_id")
   messageId     String?  @map("message_id")
-  buttonLabel   String   @default("Submit")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
-  form  Form  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  guild   Guild         @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  buttons PanelButton[]
 
   @@index([guildId])
-  @@index([formId])
   @@map("panels")
+}
+
+model PanelButton {
+  id        String           @id @default(cuid())
+  panelId   String           @map("panel_id")
+  formId    String           @map("form_id")
+  label     String
+  style     PanelButtonStyle @default(PRIMARY)
+  emoji     String?
+  sortOrder Int              @default(0) @map("sort_order")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  panel Panel @relation(fields: [panelId], references: [id], onDelete: Cascade)
+  form  Form  @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([panelId])
+  @@index([formId])
+  @@map("panel_buttons")
 }
 
 model Submission {

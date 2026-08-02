@@ -81,20 +81,23 @@ function buildModal(sessionId: string, textFields: FormField[]) {
   return modal;
 }
 
-export async function handlePanelSubmit(interaction: ButtonInteraction, panelId: string) {
-  const panel = await prisma.panel.findUnique({ where: { id: panelId }, include: { form: true } });
-  if (!panel || panel.form.status !== "PUBLISHED") {
+export async function handlePanelSubmit(interaction: ButtonInteraction, panelButtonId: string) {
+  const panelButton = await prisma.panelButton.findUnique({
+    where: { id: panelButtonId },
+    include: { form: true, panel: true },
+  });
+  if (!panelButton || panelButton.form.status !== "PUBLISHED") {
     await interaction.reply({ content: "This form is no longer available.", ephemeral: true });
     return;
   }
 
-  const fields = formFieldsSchema.parse(panel.form.fields);
+  const fields = formFieldsSchema.parse(panelButton.form.fields);
   const { selectFields, textFields } = splitFieldsForFlow(fields);
 
   const session = createSession({
-    formId: panel.form.id,
-    panelId: panel.id,
-    guildId: panel.guildId,
+    formId: panelButton.form.id,
+    panelId: panelButton.panel.id,
+    guildId: panelButton.panel.guildId,
     userId: interaction.user.id,
     answers: {},
   });

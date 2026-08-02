@@ -4,7 +4,8 @@
  * session id (uuid) + field id already eats a good chunk of that budget.
  */
 export const CustomId = {
-  panelSubmit: (panelId: string) => `psub:${panelId}`,
+  /** arg is a PanelButton id — a panel can have multiple buttons, each pointing at its own form. */
+  panelSubmit: (panelButtonId: string) => `psub:${panelButtonId}`,
   sessionSelect: (sessionId: string, fieldId: string) => `ssel:${sessionId}:${fieldId}`,
   sessionContinue: (sessionId: string) => `scon:${sessionId}`,
   sessionModal: (sessionId: string) => `smod:${sessionId}`,
