@@ -8,7 +8,8 @@
     "build": "pnpm --filter @discord-forms/db build && pnpm --filter @discord-forms/bot build && pnpm --filter @discord-forms/web build",
     "db:generate": "pnpm --filter @discord-forms/db generate",
     "db:migrate": "pnpm --filter @discord-forms/db migrate",
-    "db:studio": "pnpm --filter @discord-forms/db studio"
+    "db:studio": "pnpm --filter @discord-forms/db studio",
+    "postinstall": "pnpm --filter @discord-forms/shared run build"
   },
   "packageManager": "pnpm@9.0.0"
 }
