@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import type { Integration } from "@discord-forms/db";
 import { SettingsEditor } from "@/components/SettingsEditor";
 
 export default async function FormSettingsPage({ params }: { params: { guildId: string; formId: string } }) {
@@ -7,8 +8,8 @@ export default async function FormSettingsPage({ params }: { params: { guildId: 
   if (!form) notFound();
 
   const integrations = await prisma.integration.findMany({ where: { formId: form.id } });
-  const webhookRow = integrations.find((i) => i.type === "WEBHOOK");
-  const sheetsRow = integrations.find((i) => i.type === "SHEETS");
+  const webhookRow = integrations.find((i: Integration) => i.type === "WEBHOOK");
+  const sheetsRow = integrations.find((i: Integration) => i.type === "SHEETS");
 
   const webhookConfig = (webhookRow?.config ?? {}) as { url?: string; secret?: string };
   const sheetsConfig = (sheetsRow?.config ?? {}) as { spreadsheetId?: string; sheetName?: string; serviceAccountJson?: string };
