@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm --filter @discord-forms/db run generate && pnpm --filter @discord-forms/shared run build && next build",
+    "build": "pnpm --filter @discord-forms/db run build && pnpm --filter @discord-forms/shared run build && next build",
     "start": "next start",
     "lint": "next lint"
   },
