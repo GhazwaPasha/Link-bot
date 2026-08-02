@@ -15,17 +15,20 @@ interface Channel {
 
 // Shared across every mounted ChannelSelect for a guild so N inputs on one page (e.g. Review +
 // Output channel) issue one request instead of racing Discord's rate limit with N parallel calls.
+// The entry is removed as soon as the fetch settles, so this only dedupes requests that overlap
+// while in flight — it must never serve a stale result to a select mounted moments later (e.g.
+// after a channel was renamed/created on Discord).
 const channelFetchCache = new Map<string, Promise<Channel[]>>();
 
 function fetchGuildChannels(guildId: string): Promise<Channel[]> {
   let promise = channelFetchCache.get(guildId);
   if (!promise) {
-    promise = fetch(`/api/guilds/${guildId}/channels`).then((res) => {
+    promise = fetch(`/api/guilds/${guildId}/channels`, { cache: "no-store" }).then((res) => {
       if (!res.ok) throw new Error(`Failed to load channels (${res.status})`);
       return res.json();
     });
     channelFetchCache.set(guildId, promise);
-    promise.catch(() => channelFetchCache.delete(guildId));
+    promise.finally(() => channelFetchCache.delete(guildId));
   }
   return promise;
 }
