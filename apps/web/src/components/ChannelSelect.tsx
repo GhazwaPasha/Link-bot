@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AlertTriangle } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Channel {
   id: string;
@@ -32,22 +35,29 @@ export function ChannelSelect({
   }, [guildId]);
 
   if (failed) {
-    return <p className="text-xs text-red-400">Couldn&apos;t load channels — is the bot online?</p>;
+    return (
+      <p className="flex items-center gap-1.5 text-xs text-destructive">
+        <AlertTriangle className="h-3.5 w-3.5" />
+        Couldn&apos;t load channels — is the bot online?
+      </p>
+    );
   }
 
+  if (!channels) return <Skeleton className="h-9 w-full" />;
+
   return (
-    <select
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value || null)}
-      disabled={!channels}
-      className="discord-modal-input w-full rounded px-3 py-2 text-sm outline-none focus:border-accent disabled:opacity-50"
-    >
-      <option value="">{channels ? placeholder : "Loading…"}</option>
-      {channels?.map((c) => (
-        <option key={c.id} value={c.id}>
-          #{c.name}
-        </option>
-      ))}
-    </select>
+    <Select value={value ?? "__none__"} onValueChange={(v) => onChange(v === "__none__" ? null : v)}>
+      <SelectTrigger>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none__">{placeholder}</SelectItem>
+        {channels.map((c) => (
+          <SelectItem key={c.id} value={c.id}>
+            #{c.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

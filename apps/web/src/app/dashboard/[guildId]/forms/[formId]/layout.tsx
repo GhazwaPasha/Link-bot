@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { FormTabs } from "@/components/FormTabs";
+import { Badge } from "@/components/ui/badge";
 
 export default async function FormLayout({
   children,
@@ -15,15 +16,11 @@ export default async function FormLayout({
   return (
     <div>
       <div className="flex items-center justify-between px-8 pt-8">
-        <div>
-          <h1 className="text-2xl font-bold">{form.name}</h1>
-          <span
-            className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-              form.status === "PUBLISHED" ? "bg-accent-muted text-accent" : "bg-white/10 text-muted"
-            }`}
-          >
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">{form.name}</h1>
+          <Badge variant={form.status === "PUBLISHED" ? "default" : "secondary"}>
             {form.status === "PUBLISHED" ? "Published" : "Draft"}
-          </span>
+          </Badge>
         </div>
       </div>
       <FormTabs guildId={params.guildId} formId={params.formId} />

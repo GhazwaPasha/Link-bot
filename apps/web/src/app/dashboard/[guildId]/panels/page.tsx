@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 import { CreatePanel } from "@/components/CreatePanel";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default async function PanelsPage({ params }: { params: { guildId: string } }) {
   const [panels, publishedForms] = await Promise.all([
@@ -9,23 +11,21 @@ export default async function PanelsPage({ params }: { params: { guildId: string
 
   return (
     <main className="p-8">
-      <h1 className="mb-6 text-2xl font-bold">Panels</h1>
+      <h1 className="mb-6 text-2xl font-bold tracking-tight">Panels</h1>
 
       <CreatePanel guildId={params.guildId} forms={publishedForms} />
 
       <div className="mt-8 flex flex-col gap-3">
         {panels.map((panel) => (
-          <div key={panel.id} className="flex items-center justify-between rounded border border-border bg-card p-4">
+          <Card key={panel.id} className="flex items-center justify-between p-4">
             <div>
               <p className="font-medium">{panel.form.name}</p>
               <p className="text-xs text-muted">
                 #{panel.postChannelId} · {panel.buttonLabel}
               </p>
             </div>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${panel.messageId ? "bg-accent-muted text-accent" : "bg-white/10 text-muted"}`}>
-              {panel.messageId ? "Posted" : "Pending"}
-            </span>
-          </div>
+            <Badge variant={panel.messageId ? "default" : "secondary"}>{panel.messageId ? "Posted" : "Pending"}</Badge>
+          </Card>
         ))}
       </div>
     </main>

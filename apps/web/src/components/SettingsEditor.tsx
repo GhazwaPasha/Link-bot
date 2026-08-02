@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChannelSelect } from "./ChannelSelect";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { CheckCircle2 } from "lucide-react";
 
 interface IntegrationInit {
   webhook?: { url: string; secret: string; enabled: boolean };
@@ -73,120 +80,127 @@ export function SettingsEditor({
 
   return (
     <main className="max-w-xl p-8">
-      {message && <p className="mb-4 text-sm text-accent">{message}</p>}
+      {message && (
+        <div className="mb-4 flex items-center gap-1.5 text-sm text-success">
+          <CheckCircle2 className="h-4 w-4" />
+          {message}
+        </div>
+      )}
 
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">General</h2>
         <div className="flex flex-col gap-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Form name"
-            className="discord-modal-input rounded px-3 py-2 text-sm outline-none focus:border-accent"
-          />
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description shown on the panel message (optional)"
-            rows={2}
-            className="discord-modal-input rounded px-3 py-2 text-sm outline-none focus:border-accent"
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label>Form name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Form name" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Description</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Shown on the panel message (optional)"
+              rows={2}
+            />
+          </div>
         </div>
       </section>
 
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Channels</h2>
         <div className="flex flex-col gap-4">
-          <div>
-            <label className="mb-1 block text-xs text-muted">Review channel (leave empty to auto-approve)</label>
+          <div className="flex flex-col gap-1.5">
+            <Label>Review channel (leave empty to auto-approve)</Label>
             <ChannelSelect guildId={guildId} value={reviewChannelId} onChange={setReviewChannelId} />
           </div>
-          <div>
-            <label className="mb-1 block text-xs text-muted">Output channel</label>
+          <div className="flex flex-col gap-1.5">
+            <Label>Output channel</Label>
             <ChannelSelect guildId={guildId} value={outputChannelId} onChange={setOutputChannelId} />
           </div>
         </div>
       </section>
 
-      <button
-        onClick={saveGeneral}
-        disabled={savingGeneral}
-        className="mb-10 rounded bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-40"
-      >
+      <Button className="mb-10" onClick={saveGeneral} disabled={savingGeneral} loading={savingGeneral}>
         Save settings
-      </button>
+      </Button>
+
+      <Separator className="mb-8" />
 
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Webhook integration</h2>
         <div className="flex flex-col gap-3">
-          <input
+          <Input
             value={webhook.url}
             onChange={(e) => setWebhook({ ...webhook, url: e.target.value })}
             placeholder="https://example.com/webhook"
-            className="discord-modal-input rounded px-3 py-2 text-sm outline-none focus:border-accent"
           />
-          <input
+          <Input
             value={webhook.secret}
             onChange={(e) => setWebhook({ ...webhook, secret: e.target.value })}
             placeholder="Signing secret (optional)"
             type="password"
-            className="discord-modal-input rounded px-3 py-2 text-sm outline-none focus:border-accent"
           />
           <label className="flex items-center gap-2 text-sm text-muted">
-            <input type="checkbox" checked={webhook.enabled} onChange={(e) => setWebhook({ ...webhook, enabled: e.target.checked })} />
+            <Switch checked={webhook.enabled} onCheckedChange={(c) => setWebhook({ ...webhook, enabled: c })} />
             Enabled
           </label>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
+            className="self-start"
             onClick={() => saveIntegration("WEBHOOK")}
             disabled={savingIntegration === "WEBHOOK"}
-            className="self-start rounded border border-border px-3 py-1.5 text-sm font-medium hover:border-accent disabled:opacity-40"
+            loading={savingIntegration === "WEBHOOK"}
           >
             Save webhook
-          </button>
+          </Button>
         </div>
       </section>
 
       <section className="mb-10">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Google Sheets integration</h2>
         <div className="flex flex-col gap-3">
-          <input
+          <Input
             value={sheets.spreadsheetId}
             onChange={(e) => setSheets({ ...sheets, spreadsheetId: e.target.value })}
             placeholder="Spreadsheet ID"
-            className="discord-modal-input rounded px-3 py-2 text-sm outline-none focus:border-accent"
           />
-          <input
+          <Input
             value={sheets.sheetName}
             onChange={(e) => setSheets({ ...sheets, sheetName: e.target.value })}
             placeholder="Sheet name (default: Sheet1)"
-            className="discord-modal-input rounded px-3 py-2 text-sm outline-none focus:border-accent"
           />
-          <textarea
+          <Textarea
             value={sheets.serviceAccountJson}
             onChange={(e) => setSheets({ ...sheets, serviceAccountJson: e.target.value })}
             placeholder="Service account JSON key"
             rows={3}
-            className="discord-modal-input rounded px-3 py-2 font-mono text-xs outline-none focus:border-accent"
+            className="font-mono text-xs"
           />
           <label className="flex items-center gap-2 text-sm text-muted">
-            <input type="checkbox" checked={sheets.enabled} onChange={(e) => setSheets({ ...sheets, enabled: e.target.checked })} />
+            <Switch checked={sheets.enabled} onCheckedChange={(c) => setSheets({ ...sheets, enabled: c })} />
             Enabled
           </label>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
+            className="self-start"
             onClick={() => saveIntegration("SHEETS")}
             disabled={savingIntegration === "SHEETS"}
-            className="self-start rounded border border-border px-3 py-1.5 text-sm font-medium hover:border-accent disabled:opacity-40"
+            loading={savingIntegration === "SHEETS"}
           >
             Save Sheets
-          </button>
+          </Button>
         </div>
       </section>
 
-      <section className="border-t border-border pt-6">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-red-400">Danger zone</h2>
-        <button onClick={deleteForm} className="rounded border border-red-500/40 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10">
+      <Separator className="mb-6" />
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-destructive">Danger zone</h2>
+        <Button variant="destructive" onClick={deleteForm}>
           Delete form
-        </button>
+        </Button>
       </section>
     </main>
   );

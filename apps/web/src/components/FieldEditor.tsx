@@ -1,6 +1,11 @@
 "use client";
 
 import { FIELD_TYPES, type FieldType, type FormField } from "@discord-forms/shared";
+import { ChevronUp, ChevronDown, X, Plus, GripVertical } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 const TYPE_LABELS: Record<FieldType, string> = {
   short_text: "Short text",
@@ -62,85 +67,112 @@ export function FieldEditor({ fields, onChange }: { fields: FormField[]; onChang
 
   return (
     <div className="flex flex-col gap-3">
+      {fields.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted">
+          No fields yet — add one below to start building your form.
+        </div>
+      )}
+
       {fields.map((field, index) => (
-        <div key={field.id} className="rounded border border-border bg-card p-4">
+        <div key={field.id} className="rounded-lg border border-border bg-card p-4">
           <div className="mb-3 flex items-center gap-2">
-            <input
+            <GripVertical className="h-4 w-4 shrink-0 text-muted" />
+            <Input
               value={field.label}
               onChange={(e) => update(index, { label: e.target.value })}
               placeholder="Field label"
               maxLength={45}
-              className="discord-modal-input flex-1 rounded px-3 py-1.5 text-sm outline-none focus:border-accent"
+              className="flex-1"
             />
-            <select
-              value={field.type}
-              onChange={(e) => update(index, { type: e.target.value as FieldType })}
-              className="discord-modal-input rounded px-2 py-1.5 text-sm outline-none focus:border-accent"
-            >
-              {FIELD_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {TYPE_LABELS[t]}
-                </option>
-              ))}
-            </select>
-            <label className="flex items-center gap-1.5 whitespace-nowrap text-xs text-muted">
-              <input type="checkbox" checked={field.required} onChange={(e) => update(index, { required: e.target.checked })} />
+            <Select value={field.type} onValueChange={(v) => update(index, { type: v as FieldType })}>
+              <SelectTrigger className="w-44 shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FIELD_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {TYPE_LABELS[t]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <label className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs text-muted">
+              <Checkbox checked={field.required} onCheckedChange={(c) => update(index, { required: c === true })} />
               Required
             </label>
-            <button onClick={() => move(index, -1)} disabled={index === 0} className="px-1 text-muted hover:text-white disabled:opacity-30">
-              ↑
-            </button>
-            <button
-              onClick={() => move(index, 1)}
-              disabled={index === fields.length - 1}
-              className="px-1 text-muted hover:text-white disabled:opacity-30"
-            >
-              ↓
-            </button>
-            <button onClick={() => remove(index)} className="px-1 text-red-400 hover:text-red-300">
-              ✕
-            </button>
+            <div className="flex shrink-0 items-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => move(index, -1)}
+                disabled={index === 0}
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => move(index, 1)}
+                disabled={index === fields.length - 1}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => remove(index)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {HAS_PLACEHOLDER.includes(field.type) && (
-            <input
+            <Input
               value={field.placeholder ?? ""}
               onChange={(e) => update(index, { placeholder: e.target.value })}
               placeholder="Placeholder text (optional)"
               maxLength={100}
-              className="discord-modal-input w-full rounded px-3 py-1.5 text-sm outline-none focus:border-accent"
+              className="ml-6"
             />
           )}
 
           {HAS_OPTIONS.includes(field.type) && (
-            <div className="flex flex-col gap-2">
+            <div className="ml-6 flex flex-col gap-2">
               {(field.options ?? []).map((opt, optIndex) => (
                 <div key={optIndex} className="flex items-center gap-2">
-                  <input
+                  <Input
                     value={opt.label}
                     onChange={(e) => updateOption(index, optIndex, { label: e.target.value })}
                     placeholder="Option label"
-                    className="discord-modal-input flex-1 rounded px-3 py-1.5 text-sm outline-none focus:border-accent"
+                    className="flex-1"
                   />
-                  <button onClick={() => removeOption(index, optIndex)} className="px-1 text-red-400 hover:text-red-300">
-                    ✕
-                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => removeOption(index, optIndex)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
-              <button onClick={() => addOption(index)} className="self-start text-xs font-medium text-accent hover:text-accent-hover">
-                + Add option
-              </button>
+              <Button variant="link" size="sm" className="h-auto self-start p-0" onClick={() => addOption(index)}>
+                <Plus className="h-3.5 w-3.5" />
+                Add option
+              </Button>
             </div>
           )}
         </div>
       ))}
 
-      <button
-        onClick={() => onChange([...fields, emptyField()])}
-        className="rounded border border-dashed border-border py-2.5 text-sm font-medium text-muted hover:border-accent hover:text-accent"
-      >
-        + Add field
-      </button>
+      <Button variant="outline" className="border-dashed" onClick={() => onChange([...fields, emptyField()])}>
+        <Plus className="h-4 w-4" />
+        Add field
+      </Button>
     </div>
   );
 }

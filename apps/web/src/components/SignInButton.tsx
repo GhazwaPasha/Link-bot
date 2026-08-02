@@ -1,14 +1,14 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { DiscordIcon } from "@/components/icons/DiscordIcon";
 
 export function SignInButton() {
   return (
-    <button
-      onClick={() => signIn("discord", { callbackUrl: "/dashboard" })}
-      className="rounded bg-accent px-6 py-3 font-semibold text-white transition hover:bg-accent-hover"
-    >
-      Login with Discord
-    </button>
+    <Button size="lg" onClick={() => signIn("discord", { callbackUrl: "/dashboard" })}>
+      <DiscordIcon className="h-4 w-4" />
+      Log in with Discord
+    </Button>
   );
 }

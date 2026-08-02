@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { CheckCircle2 } from "lucide-react";
 
 interface Role {
   id: string;
@@ -40,32 +45,47 @@ export function GuildSettingsEditor({ guildId, initialReviewRoleIds }: { guildId
 
   return (
     <main className="max-w-xl p-8">
-      <h1 className="mb-2 text-2xl font-bold">Settings</h1>
+      <h1 className="mb-2 text-2xl font-bold tracking-tight">Settings</h1>
       <p className="mb-6 text-sm text-muted">
         Members with these roles (or Manage Server) can approve/reject submissions in review channels.
       </p>
 
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Review roles</h2>
-      {roles === null && <p className="text-sm text-muted">Loading roles…</p>}
-      {roles?.length === 0 && <p className="text-sm text-muted">No roles found.</p>}
 
-      <div className="mb-6 flex flex-col gap-2">
-        {roles?.map((role) => (
-          <label key={role.id} className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={selected.has(role.id)} onChange={() => toggle(role.id)} />
-            {role.name}
-          </label>
-        ))}
+      {roles === null && (
+        <div className="mb-6 flex flex-col gap-2">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-2/3" />
+        </div>
+      )}
+
+      {roles?.length === 0 && <p className="mb-6 text-sm text-muted">No roles found.</p>}
+
+      {roles && roles.length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="flex flex-col gap-3 p-4">
+            {roles.map((role) => (
+              <label key={role.id} className="flex cursor-pointer items-center gap-2.5 text-sm">
+                <Checkbox checked={selected.has(role.id)} onCheckedChange={() => toggle(role.id)} />
+                {role.name}
+              </label>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="flex items-center gap-3">
+        <Button onClick={save} disabled={saving || roles === null} loading={saving}>
+          Save
+        </Button>
+        {message && (
+          <span className="flex items-center gap-1.5 text-sm text-success">
+            <CheckCircle2 className="h-4 w-4" />
+            {message}
+          </span>
+        )}
       </div>
-
-      {message && <p className="mb-3 text-sm text-accent">{message}</p>}
-      <button
-        onClick={save}
-        disabled={saving || roles === null}
-        className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-40"
-      >
-        Save
-      </button>
     </main>
   );
 }
