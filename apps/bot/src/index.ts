@@ -6,8 +6,11 @@ import { registerGuildCreate } from "./events/guildCreate";
 import { registerGuildDelete } from "./events/guildDelete";
 import { registerInteractionCreate } from "./events/interactionCreate";
 import { startPanelPoller } from "./poller";
+import { startHealthServer } from "./health";
 
 async function main() {
+  startHealthServer();
+
   const client = createClient();
 
   for (const command of commands) {
