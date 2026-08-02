@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { deleteFormAction } from "./actions";
+import { deleteFormAction, duplicateFormAction } from "./actions";
 import { CreateFormDialog } from "@/components/CreateFormDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, FileText } from "lucide-react";
+import { Trash2, Copy, FileText } from "lucide-react";
 
 export default async function FormsListPage({ params }: { params: { guildId: string } }) {
   const forms = await prisma.form.findMany({
@@ -39,13 +39,22 @@ export default async function FormsListPage({ params }: { params: { guildId: str
               </div>
               <p className="text-xs text-muted">Created {form.createdAt.toLocaleDateString()}</p>
             </Link>
-            <form action={deleteFormAction} className="absolute bottom-3 right-3 opacity-0 transition-opacity group-hover:opacity-100">
-              <input type="hidden" name="guildId" value={params.guildId} />
-              <input type="hidden" name="formId" value={form.id} />
-              <Button type="submit" variant="ghost" size="icon" className="h-7 w-7 text-muted hover:text-destructive" title="Delete form">
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </form>
+            <div className="absolute bottom-3 right-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <form action={duplicateFormAction}>
+                <input type="hidden" name="guildId" value={params.guildId} />
+                <input type="hidden" name="formId" value={form.id} />
+                <Button type="submit" variant="ghost" size="icon" className="h-7 w-7 text-muted hover:text-foreground" title="Duplicate form">
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </form>
+              <form action={deleteFormAction}>
+                <input type="hidden" name="guildId" value={params.guildId} />
+                <input type="hidden" name="formId" value={form.id} />
+                <Button type="submit" variant="ghost" size="icon" className="h-7 w-7 text-muted hover:text-destructive" title="Delete form">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </form>
+            </div>
           </Card>
         ))}
       </div>

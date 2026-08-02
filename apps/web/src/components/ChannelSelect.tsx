@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle } from "lucide-react";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { AlertTriangle, Check, ChevronsUpDown, Hash } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface Channel {
   id: string;
@@ -40,6 +43,7 @@ export function ChannelSelect({
 }) {
   const [channels, setChannels] = useState<Channel[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,19 +72,57 @@ export function ChannelSelect({
 
   if (!channels) return <Skeleton className="h-9 w-full" />;
 
+  const selected = channels.find((c) => c.id === value);
+
   return (
-    <Select value={value ?? "__none__"} onValueChange={(v) => onChange(v === "__none__" ? null : v)}>
-      <SelectTrigger>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__none__">{placeholder}</SelectItem>
-        {channels.map((c) => (
-          <SelectItem key={c.id} value={c.id}>
-            #{c.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          <span className={cn("truncate", !selected && "text-muted")}>
+            {selected ? `#${selected.name}` : placeholder}
+          </span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0">
+        <Command>
+          <CommandInput placeholder="Search channels…" />
+          <CommandList>
+            <CommandEmpty>No channel found.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="__none__"
+                onSelect={() => {
+                  onChange(null);
+                  setOpen(false);
+                }}
+              >
+                <Check className={cn("h-4 w-4", value ? "opacity-0" : "opacity-100")} />
+                {placeholder}
+              </CommandItem>
+              {channels.map((c) => (
+                <CommandItem
+                  key={c.id}
+                  value={c.name}
+                  onSelect={() => {
+                    onChange(c.id);
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn("h-4 w-4", value === c.id ? "opacity-100" : "opacity-0")} />
+                  <Hash className="h-3.5 w-3.5 shrink-0 text-muted" />
+                  {c.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
