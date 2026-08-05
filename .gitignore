@@ -4,5 +4,6 @@ dist/
 .env
 .env.local
 *.log
+corded-palisade-431912-j4-f0f5925aed35.json
 .turbo/
 .DS_Store
