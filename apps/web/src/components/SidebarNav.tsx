@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, LayoutPanelTop, Inbox, Settings, ChevronLeft } from "lucide-react";
+import { LayoutDashboard, FileText, LayoutPanelTop, Settings, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { label: "Overview", href: "", icon: LayoutDashboard },
   { label: "Forms", href: "/forms", icon: FileText },
   { label: "Panels", href: "/panels", icon: LayoutPanelTop },
-  { label: "Submissions", href: "/submissions", icon: Inbox },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
