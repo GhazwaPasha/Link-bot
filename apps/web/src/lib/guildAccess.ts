@@ -16,7 +16,7 @@ export const getManageableGuilds = cache(async (): Promise<DiscordGuild[]> => {
 /** Redirects home if the signed-in user can't manage this guild. Use at the top of every dashboard/[guildId] page. */
 export async function requireGuildAccess(guildId: string): Promise<DiscordGuild> {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/");
+  if (!session || session.error) redirect("/");
 
   const guilds = await getManageableGuilds();
   const guild = guilds.find((g) => g.id === guildId);

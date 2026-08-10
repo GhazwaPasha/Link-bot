@@ -11,6 +11,8 @@ export const CustomId = {
   sessionModal: (sessionId: string) => `smod:${sessionId}`,
   submissionApprove: (submissionId: string) => `sapp:${submissionId}`,
   submissionReject: (submissionId: string) => `srej:${submissionId}`,
+  /** Disabled terminal button showing who approved/rejected — never actually clicked. */
+  submissionResolved: (submissionId: string) => `sres:${submissionId}`,
 };
 
 export function parseCustomId(customId: string): { prefix: string; args: string[] } {

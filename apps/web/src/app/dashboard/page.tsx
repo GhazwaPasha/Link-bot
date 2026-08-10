@@ -1,5 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { getManageableGuilds } from "@/lib/guildAccess";
 import { guildIconUrl, botInviteUrl } from "@/lib/discord";
 import { prisma } from "@/lib/db";
@@ -7,6 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export default async function ServerPickerPage() {
+  const session = await getServerSession(authOptions);
+  // Middleware only guarantees a token exists, not that it's still valid —
+  // a Discord token whose refresh failed carries session.error instead.
+  if (!session || session.error) redirect("/");
+
   const manageableGuilds = await getManageableGuilds();
   const installedGuilds = await prisma.guild.findMany({
     where: { guildId: { in: manageableGuilds.map((g) => g.id) }, leftAt: null },

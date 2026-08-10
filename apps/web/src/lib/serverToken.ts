@@ -14,5 +14,9 @@ export async function getDiscordAccessToken(): Promise<string | null> {
     req: { cookies: cookieRecord } as unknown as Parameters<typeof getToken>[0]["req"],
     secret: process.env.NEXTAUTH_SECRET,
   });
-  return token?.accessToken ?? null;
+  // If the jwt callback's refresh attempt failed, the accessToken here is stale
+  // and would just 401 against Discord — treat it as absent so callers fall
+  // back to signed-out behavior instead of throwing on the API call.
+  if (!token || token.error) return null;
+  return token.accessToken ?? null;
 }
