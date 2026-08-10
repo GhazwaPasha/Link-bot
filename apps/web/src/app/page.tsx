@@ -25,7 +25,10 @@ const FEATURES = [
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
-  if (session) redirect("/dashboard");
+  // A session whose Discord token refresh failed is effectively signed out —
+  // redirecting it to /dashboard would just bounce straight back here (see
+  // guildAccess.ts / dashboard/page.tsx), looping forever.
+  if (session && !session.error) redirect("/dashboard");
 
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-6 py-20">
