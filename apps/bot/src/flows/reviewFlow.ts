@@ -93,6 +93,13 @@ async function canReview(interaction: ButtonInteraction): Promise<boolean> {
   if (!interaction.inCachedGuild()) return false;
   if (interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) return true;
 
+  // Anyone who can see the review channel itself (e.g. it's restricted to a
+  // private set of roles/members via channel overwrites) counts as a reviewer.
+  // interaction.memberPermissions is computed in the channel the interaction
+  // fired in — unlike interaction.member.permissions, which is guild-wide and
+  // ignores channel overwrites.
+  if (interaction.memberPermissions?.has(PermissionFlagsBits.ViewChannel)) return true;
+
   const guildRow = await prisma.guild.findUnique({ where: { guildId: interaction.guildId! } });
   if (!guildRow || guildRow.reviewRoleIds.length === 0) return false;
   return interaction.member.roles.cache.some((r) => guildRow.reviewRoleIds.includes(r.id));
