@@ -14,24 +14,32 @@ export function registerInteractionCreate(client: BotClient) {
         return;
       }
 
+      // Every branch below must be `await`ed, not just `return`ed — `return
+      // somePromise()` inside a try block hands control back to the caller
+      // immediately without the try/catch ever seeing a later rejection. That
+      // gap let an ordinary timed-out interaction (10062, expected whenever a
+      // click barely misses Discord's 3s window) turn into an unhandled
+      // rejection, which crashed the *entire* bot process (discord.js's
+      // Client re-emits it as an 'error' event with no listener registered).
+
       if (interaction.isButton()) {
         const { prefix, args } = parseCustomId(interaction.customId);
-        if (prefix === "psub") return handlePanelSubmit(interaction, args[0]);
-        if (prefix === "scon") return handleSessionContinue(interaction, args[0]);
-        if (prefix === "sapp") return handleSubmissionApprove(interaction, args[0]);
-        if (prefix === "srej") return handleSubmissionReject(interaction, args[0]);
+        if (prefix === "psub") return await handlePanelSubmit(interaction, args[0]);
+        if (prefix === "scon") return await handleSessionContinue(interaction, args[0]);
+        if (prefix === "sapp") return await handleSubmissionApprove(interaction, args[0]);
+        if (prefix === "srej") return await handleSubmissionReject(interaction, args[0]);
         return;
       }
 
       if (interaction.isAnySelectMenu()) {
         const { prefix, args } = parseCustomId(interaction.customId);
-        if (prefix === "ssel") return handleSessionSelect(interaction, args[0], args[1]);
+        if (prefix === "ssel") return await handleSessionSelect(interaction, args[0], args[1]);
         return;
       }
 
       if (interaction.isModalSubmit()) {
         const { prefix, args } = parseCustomId(interaction.customId);
-        if (prefix === "smod") return handleSessionModalSubmit(interaction, args[0]);
+        if (prefix === "smod") return await handleSessionModalSubmit(interaction, args[0]);
         return;
       }
     } catch (err) {
