@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { SignInButton } from "@/components/SignInButton";
 import { DiscordModalPreview } from "@/components/preview/DiscordModalPreview";
@@ -62,6 +63,15 @@ export default async function HomePage() {
           ]}
         />
       </div>
+
+      <footer className="mt-20 flex gap-6 text-xs text-muted">
+        <Link href="/terms" className="hover:text-foreground">
+          Terms of Service
+        </Link>
+        <Link href="/privacy" className="hover:text-foreground">
+          Privacy Policy
+        </Link>
+      </footer>
     </main>
   );
 }
