@@ -21,6 +21,7 @@ import {
 } from "@discord-forms/shared";
 import { CustomId, parseCustomId } from "../customIds";
 import { createSession, deleteSession, getSession, updateSessionAnswer } from "../state/submissionSession";
+import { getPanelButtonCached } from "../state/panelButtonCache";
 import { finalizeSubmission } from "./reviewFlow";
 
 function buildSelectRow(sessionId: string, field: FormField) {
@@ -82,10 +83,10 @@ function buildModal(sessionId: string, textFields: FormField[]) {
 }
 
 export async function handlePanelSubmit(interaction: ButtonInteraction, panelButtonId: string) {
-  const panelButton = await prisma.panelButton.findUnique({
-    where: { id: panelButtonId },
-    include: { form: true, panel: true },
-  });
+  // Cached — this is the very first interaction in the flow (no ack yet, and
+  // showModal below must be the *initial* response), so a cold DB round-trip
+  // here (1-3s, see panelButtonCache) risks blowing Discord's 3s ack deadline.
+  const panelButton = await getPanelButtonCached(panelButtonId);
   if (!panelButton || panelButton.form.status !== "PUBLISHED") {
     await interaction.reply({ content: "This form is no longer available.", ephemeral: true });
     return;
@@ -100,6 +101,7 @@ export async function handlePanelSubmit(interaction: ButtonInteraction, panelBut
     guildId: panelButton.panel.guildId,
     userId: interaction.user.id,
     answers: {},
+    form: panelButton.form,
   });
 
   if (selectFields.length === 0) {
@@ -134,8 +136,12 @@ export async function handleSessionContinue(interaction: ButtonInteraction, sess
     return;
   }
 
-  const form = await prisma.form.findUnique({ where: { id: session.formId } });
-  if (!form || form.status !== "PUBLISHED") {
+  // Snapshot taken when the session was created — no DB round-trip here,
+  // since showModal below must be the *initial* (undeferred) response and a
+  // cold query (1-3s) risks blowing Discord's 3s ack deadline. See
+  // SubmissionSession.form for the staleness tradeoff.
+  const form = session.form;
+  if (form.status !== "PUBLISHED") {
     await interaction.reply({ content: "This form is no longer available.", ephemeral: true });
     deleteSession(sessionId);
     return;

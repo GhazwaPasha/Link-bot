@@ -1,9 +1,18 @@
 import { randomUUID } from "node:crypto";
+import type { Form } from "@discord-forms/db";
 
 /**
  * Holds in-progress submission answers between the select-menu chain and the
  * final modal submit. Single-process, in-memory — fine for one bot instance;
  * would need a shared store (Redis) if the bot ever scales horizontally.
+ *
+ * `form` is a snapshot taken when the session was created (`handlePanelSubmit`
+ * already has it loaded from the panel button lookup) so later steps in the
+ * chain — the "Continue" button in particular — don't need their own DB
+ * round-trip just to decide how to respond, which would eat into Discord's 3s
+ * interaction-ack budget. It can go stale for up to the session TTL if the
+ * form is edited/unpublished mid-fill; `handleSessionModalSubmit` re-fetches
+ * fresh right after acking, so that path still catches it.
  */
 export interface SubmissionSession {
   id: string;
@@ -13,6 +22,7 @@ export interface SubmissionSession {
   userId: string;
   answers: Record<string, string>;
   createdAt: number;
+  form: Form;
 }
 
 const sessions = new Map<string, SubmissionSession>();

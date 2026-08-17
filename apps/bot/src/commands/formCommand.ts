@@ -52,6 +52,12 @@ async function execute(interaction: ChatInputCommandInteraction) {
     return;
   }
 
+  // Ack immediately — every branch below does at least one DB round-trip
+  // (ensureGuildRow plus its own query), and a single query alone can take
+  // 1-3s against our DB, which leaves no margin against Discord's 3s
+  // interaction-ack deadline. Every reply below uses editReply instead.
+  await interaction.deferReply({ ephemeral: true });
+
   await ensureGuildRow(interaction.guildId, interaction.guild.name, interaction.guild.iconURL());
 
   const sub = interaction.options.getSubcommand();
@@ -61,9 +67,8 @@ async function execute(interaction: ChatInputCommandInteraction) {
     const form = await prisma.form.create({
       data: { guildId: interaction.guildId, name, fields: [] },
     });
-    await interaction.reply({
+    await interaction.editReply({
       content: `Created draft form **${name}** (ID \`${form.id}\`). Finish building it at ${env.DASHBOARD_URL}/dashboard/${interaction.guildId}/forms/${form.id}, then run \`/form publish\`.`,
-      ephemeral: true,
     });
     return;
   }
@@ -71,11 +76,11 @@ async function execute(interaction: ChatInputCommandInteraction) {
   if (sub === "list") {
     const forms = await prisma.form.findMany({ where: { guildId: interaction.guildId }, orderBy: { createdAt: "desc" } });
     if (forms.length === 0) {
-      await interaction.reply({ content: "No forms yet — create one with `/form create`.", ephemeral: true });
+      await interaction.editReply({ content: "No forms yet — create one with `/form create`." });
       return;
     }
     const lines = forms.map((f) => `\`${f.id}\` — **${f.name}** (${f.status.toLowerCase()})`);
-    await interaction.reply({ content: lines.join("\n"), ephemeral: true });
+    await interaction.editReply({ content: lines.join("\n") });
     return;
   }
 
@@ -83,21 +88,21 @@ async function execute(interaction: ChatInputCommandInteraction) {
     const formId = interaction.options.getString("form_id", true);
     const form = await prisma.form.findFirst({ where: { id: formId, guildId: interaction.guildId } });
     if (!form) {
-      await interaction.reply({ content: "Form not found.", ephemeral: true });
+      await interaction.editReply({ content: "Form not found." });
       return;
     }
     const fields = formFieldsSchema.parse(form.fields);
     if (fields.length === 0) {
-      await interaction.reply({ content: "This form has no fields yet — add some in the dashboard first.", ephemeral: true });
+      await interaction.editReply({ content: "This form has no fields yet — add some in the dashboard first." });
       return;
     }
     const issues = validateFormFields(fields);
     if (issues.length > 0) {
-      await interaction.reply({ content: `Can't publish:\n${issues.map((i) => `- ${i.message}`).join("\n")}`, ephemeral: true });
+      await interaction.editReply({ content: `Can't publish:\n${issues.map((i) => `- ${i.message}`).join("\n")}` });
       return;
     }
     await prisma.form.update({ where: { id: form.id }, data: { status: "PUBLISHED" } });
-    await interaction.reply({ content: `**${form.name}** is published. Use \`/form panel\` to post it.`, ephemeral: true });
+    await interaction.editReply({ content: `**${form.name}** is published. Use \`/form panel\` to post it.` });
     return;
   }
 
@@ -108,15 +113,14 @@ async function execute(interaction: ChatInputCommandInteraction) {
 
     const form = await prisma.form.findFirst({ where: { id: formId, guildId: interaction.guildId } });
     if (!form) {
-      await interaction.reply({ content: "Form not found.", ephemeral: true });
+      await interaction.editReply({ content: "Form not found." });
       return;
     }
     if (form.status !== "PUBLISHED") {
-      await interaction.reply({ content: "Publish the form first with `/form publish`.", ephemeral: true });
+      await interaction.editReply({ content: "Publish the form first with `/form publish`." });
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
     const panel = await prisma.panel.create({
       data: {
         guildId: interaction.guildId,
