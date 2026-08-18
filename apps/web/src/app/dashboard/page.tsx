@@ -5,7 +5,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getManageableGuilds } from "@/lib/guildAccess";
 import { guildIconUrl, botInviteUrl } from "@/lib/discord";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { guilds } from "@discord-forms/db";
+import { and, inArray, isNull } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
@@ -16,10 +18,13 @@ export default async function ServerPickerPage() {
   if (!session || session.error) redirect("/");
 
   const manageableGuilds = await getManageableGuilds();
-  const installedGuilds = await prisma.guild.findMany({
-    where: { guildId: { in: manageableGuilds.map((g) => g.id) }, leftAt: null },
-    select: { guildId: true },
-  });
+  const installedGuilds =
+    manageableGuilds.length === 0
+      ? []
+      : await db.query.guilds.findMany({
+          where: and(inArray(guilds.guildId, manageableGuilds.map((g) => g.id)), isNull(guilds.leftAt)),
+          columns: { guildId: true },
+        });
   const installedIds = new Set(installedGuilds.map((g) => g.guildId));
 
   return (

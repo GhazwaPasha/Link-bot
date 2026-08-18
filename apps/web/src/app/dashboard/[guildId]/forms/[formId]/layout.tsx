@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { forms } from "@discord-forms/db";
+import { and, eq } from "drizzle-orm";
 import { FormTabs } from "@/components/FormTabs";
 import { Badge } from "@/components/ui/badge";
 
@@ -10,7 +12,9 @@ export default async function FormLayout({
   children: React.ReactNode;
   params: { guildId: string; formId: string };
 }) {
-  const form = await prisma.form.findFirst({ where: { id: params.formId, guildId: params.guildId } });
+  const form = await db.query.forms.findFirst({
+    where: and(eq(forms.id, params.formId), eq(forms.guildId, params.guildId)),
+  });
   if (!form) notFound();
 
   return (

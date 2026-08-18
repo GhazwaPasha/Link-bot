@@ -1,14 +1,17 @@
 import { Events, type Guild } from "discord.js";
-import { prisma } from "@discord-forms/db";
+import { db, guilds } from "@discord-forms/db";
+import { sql } from "drizzle-orm";
 import type { BotClient } from "../client";
 
 export function registerGuildCreate(client: BotClient) {
   client.on(Events.GuildCreate, async (guild: Guild) => {
-    await prisma.guild.upsert({
-      where: { guildId: guild.id },
-      update: { name: guild.name, iconUrl: guild.iconURL(), leftAt: null },
-      create: { guildId: guild.id, name: guild.name, iconUrl: guild.iconURL() },
-    });
+    await db
+      .insert(guilds)
+      .values({ guildId: guild.id, name: guild.name, iconUrl: guild.iconURL() })
+      .onConflictDoUpdate({
+        target: guilds.guildId,
+        set: { name: guild.name, iconUrl: guild.iconURL(), leftAt: null, updatedAt: sql`now()` },
+      });
     console.log(`Joined guild ${guild.name} (${guild.id})`);
   });
 }

@@ -1,10 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { formFieldsSchema, validateFormFields } from "@discord-forms/shared";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { forms } from "@discord-forms/db";
+import { eq } from "drizzle-orm";
 import { checkGuildAccess } from "@/lib/apiAuth";
 
 export async function POST(_req: NextRequest, { params }: { params: { formId: string } }) {
-  const form = await prisma.form.findUnique({ where: { id: params.formId } });
+  const form = await db.query.forms.findFirst({ where: eq(forms.id, params.formId) });
   if (!form) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const access = await checkGuildAccess(form.guildId);
@@ -20,6 +22,6 @@ export async function POST(_req: NextRequest, { params }: { params: { formId: st
     return NextResponse.json({ error: "Form has validation issues", issues }, { status: 400 });
   }
 
-  const updated = await prisma.form.update({ where: { id: params.formId }, data: { status: "PUBLISHED" } });
+  const [updated] = await db.update(forms).set({ status: "PUBLISHED" }).where(eq(forms.id, params.formId)).returning();
   return NextResponse.json(updated);
 }

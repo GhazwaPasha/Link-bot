@@ -13,7 +13,8 @@ import {
   type ButtonInteraction,
   type ModalSubmitInteraction,
 } from "discord.js";
-import { prisma } from "@discord-forms/db";
+import { db, forms } from "@discord-forms/db";
+import { eq } from "drizzle-orm";
 import {
   formFieldsSchema,
   splitFieldsForFlow,
@@ -181,7 +182,7 @@ export async function handleSessionModalSubmit(interaction: ModalSubmitInteracti
     return;
   }
 
-  const form = await prisma.form.findUnique({ where: { id: session.formId } });
+  const form = await db.query.forms.findFirst({ where: eq(forms.id, session.formId) });
   if (!form || form.status !== "PUBLISHED") {
     await interaction.editReply({ content: "This form is no longer available." });
     deleteSession(sessionId);

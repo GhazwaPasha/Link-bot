@@ -10,7 +10,8 @@ import {
   type Client,
   type ModalSubmitInteraction,
 } from "discord.js";
-import { prisma, type Form } from "@discord-forms/db";
+import { db, guilds, submissions, type Form } from "@discord-forms/db";
+import { and, eq } from "drizzle-orm";
 import { formatAnswerValue, type FormField } from "@discord-forms/shared";
 import type { SubmissionSession } from "../state/submissionSession";
 import { CustomId } from "../customIds";
@@ -104,8 +105,9 @@ export async function finalizeSubmission(
 ) {
   const autoApprove = !form.reviewChannelId;
 
-  const submission = await prisma.submission.create({
-    data: {
+  const [submission] = await db
+    .insert(submissions)
+    .values({
       formId: form.id,
       guildId: session.guildId,
       userId: session.userId,
@@ -114,8 +116,8 @@ export async function finalizeSubmission(
       reviewChannelId: form.reviewChannelId,
       outputChannelId: form.outputChannelId,
       reviewedAt: autoApprove ? new Date() : null,
-    },
-  });
+    })
+    .returning();
 
   const submitterName = await resolveDisplayName(interaction.client, session.guildId, session.userId);
   const embed = buildSubmissionEmbed(form, fields, session.answers, submitterName);
@@ -127,7 +129,7 @@ export async function finalizeSubmission(
     const channel = await interaction.client.channels.fetch(form.reviewChannelId!).catch(() => null);
     if (channel instanceof TextChannel) {
       const message = await channel.send({ embeds: [embed], components: [buildReviewButtons(submission.id)] });
-      await prisma.submission.update({ where: { id: submission.id }, data: { reviewMessageId: message.id } });
+      await db.update(submissions).set({ reviewMessageId: message.id }).where(eq(submissions.id, submission.id));
     }
   }
 
@@ -145,7 +147,7 @@ async function canReview(interaction: ButtonInteraction): Promise<boolean> {
   // ignores channel overwrites.
   if (interaction.memberPermissions?.has(PermissionFlagsBits.ViewChannel)) return true;
 
-  const guildRow = await prisma.guild.findUnique({ where: { guildId: interaction.guildId! } });
+  const guildRow = await db.query.guilds.findFirst({ where: eq(guilds.guildId, interaction.guildId!) });
   if (!guildRow || guildRow.reviewRoleIds.length === 0) return false;
   return interaction.member.roles.cache.some((r) => guildRow.reviewRoleIds.includes(r.id));
 }
@@ -167,23 +169,27 @@ async function resolveReviewDecision(interaction: ButtonInteraction, submissionI
 
   // Atomically claim the submission — guards against two reviewers racing
   // (e.g. one hits Approve while another hits Reject before either write lands).
-  const claim = await prisma.submission.updateMany({
-    where: { id: submissionId, status: "PENDING" },
-    data: {
+  const claim = await db
+    .update(submissions)
+    .set({
       status: approve ? "APPROVED" : "REJECTED",
       reviewedBy: interaction.user.id,
       reviewedAt: new Date(),
-    },
-  });
+    })
+    .where(and(eq(submissions.id, submissionId), eq(submissions.status, "PENDING")))
+    .returning({ id: submissions.id });
 
-  const submission = await prisma.submission.findUnique({ where: { id: submissionId }, include: { form: true } });
+  const submission = await db.query.submissions.findFirst({
+    where: eq(submissions.id, submissionId),
+    with: { form: true },
+  });
   if (!submission) {
     await interaction.followUp({ content: "Submission not found.", ephemeral: true });
     await interaction.editReply({ components: [] });
     return;
   }
 
-  if (claim.count === 0) {
+  if (claim.length === 0) {
     // Someone else already resolved it first — surface that instead of clobbering their decision.
     await interaction.followUp({ content: "This submission has already been reviewed.", ephemeral: true });
   }
@@ -194,14 +200,14 @@ async function resolveReviewDecision(interaction: ButtonInteraction, submissionI
     resolveDisplayName(interaction.client, submission.guildId, submission.reviewedBy!),
   ]);
 
-  const fields = (submission.form.fields ?? []) as unknown as FormField[];
-  const embed = buildSubmissionEmbed(submission.form, fields, submission.answers as Record<string, string>, submitterName).setFooter({
+  const fields = submission.form.fields ?? [];
+  const embed = buildSubmissionEmbed(submission.form, fields, submission.answers, submitterName).setFooter({
     text: `${decidedApprove ? "Approved" : "Rejected"} by ${reviewerName}`,
   });
 
   await interaction.editReply({ embeds: [embed], components: [buildResolvedButtons(submissionId, decidedApprove, reviewerName)] });
 
-  if (claim.count === 1 && decidedApprove) {
+  if (claim.length === 1 && decidedApprove) {
     await postOutput(interaction, submission.form, embed);
     await runIntegrations(submission.form, submission);
   }

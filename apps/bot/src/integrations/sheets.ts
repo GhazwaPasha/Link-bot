@@ -19,7 +19,7 @@ export async function appendToSheet(config: SheetsConfig, form: Form, submission
   const sheets = google.sheets({ version: "v4", auth });
 
   const fields = formFieldsSchema.parse(form.fields);
-  const answers = submission.answers as Record<string, string>;
+  const answers = submission.answers;
   const row = [
     submission.createdAt.toISOString(),
     submission.userId,

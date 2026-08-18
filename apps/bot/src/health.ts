@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
-import { prisma } from "@discord-forms/db";
+import { db } from "@discord-forms/db";
+import { sql } from "drizzle-orm";
 import { env } from "./env";
 
 export function startHealthServer() {
@@ -10,8 +11,7 @@ export function startHealthServer() {
     // at "/health/db" specifically to touch Supabase on every ping — keeping
     // the project out of its 7-day inactivity auto-pause.
     if (req.url === "/health/db") {
-      prisma
-        .$queryRaw`SELECT 1`
+      db.execute(sql`select 1`)
         .then(() => {
           res.writeHead(200, { "content-type": "text/plain" });
           res.end("ok");

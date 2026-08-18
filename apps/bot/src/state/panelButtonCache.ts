@@ -1,4 +1,5 @@
-import { prisma } from "@discord-forms/db";
+import { db, panelButtons } from "@discord-forms/db";
+import { eq } from "drizzle-orm";
 
 /**
  * A single DB round-trip can already take 1-3s (see `handlePanelSubmit`), which
@@ -15,9 +16,9 @@ const CACHE_TTL_MS = 30_000;
 const cache = new Map<string, { value: CachedPanelButton; expiresAt: number }>();
 
 function fetchPanelButton(id: string) {
-  return prisma.panelButton.findUnique({
-    where: { id },
-    include: { form: true, panel: true },
+  return db.query.panelButtons.findFirst({
+    where: eq(panelButtons.id, id),
+    with: { form: true, panel: true },
   });
 }
 

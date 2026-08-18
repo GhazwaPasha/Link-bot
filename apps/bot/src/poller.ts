@@ -1,4 +1,5 @@
-import { prisma } from "@discord-forms/db";
+import { db, panelButtons, panels } from "@discord-forms/db";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import type { BotClient } from "./client";
 import { postPanelMessage } from "./flows/panelFlow";
 import { env } from "./env";
@@ -20,9 +21,12 @@ import { env } from "./env";
 export function startPanelPoller(client: BotClient) {
   const tick = async () => {
     try {
-      const pendingPanels = await prisma.panel.findMany({
-        where: { messageId: null, failedAt: null },
-        include: { buttons: { orderBy: { sortOrder: "asc" } }, guild: { select: { leftAt: true } } },
+      const pendingPanels = await db.query.panels.findMany({
+        where: and(isNull(panels.messageId), isNull(panels.failedAt)),
+        with: {
+          buttons: { orderBy: asc(panelButtons.sortOrder) },
+          guild: { columns: { leftAt: true } },
+        },
       });
 
       for (const panel of pendingPanels) {
@@ -37,8 +41,10 @@ export function startPanelPoller(client: BotClient) {
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           console.error(`[poller] failed to post panel ${panel.id}: ${message}`);
-          await prisma.panel
-            .update({ where: { id: panel.id }, data: { failedAt: new Date(), lastError: message } })
+          await db
+            .update(panels)
+            .set({ failedAt: new Date(), lastError: message })
+            .where(eq(panels.id, panel.id))
             .catch((updateErr) => console.error(`[poller] failed to record failure for panel ${panel.id}:`, updateErr));
         }
       }

@@ -1,11 +1,12 @@
-import { prisma, type Form, type Submission } from "@discord-forms/db";
+import { db, integrations as integrationsTable, type Form, type Submission } from "@discord-forms/db";
+import { and, eq } from "drizzle-orm";
 import { appendToSheet, type SheetsConfig } from "./sheets";
 import { postToWebhook, type WebhookConfig } from "./webhook";
 
 /** Runs every enabled integration for a form against a newly-approved submission. */
 export async function runIntegrations(form: Form, submission: Submission) {
-  const integrations = await prisma.integration.findMany({
-    where: { formId: form.id, enabled: true },
+  const integrations = await db.query.integrations.findMany({
+    where: and(eq(integrationsTable.formId, form.id), eq(integrationsTable.enabled, true)),
   });
 
   for (const integration of integrations) {

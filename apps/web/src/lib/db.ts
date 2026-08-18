@@ -1,1 +1,1 @@
-export { prisma } from "@discord-forms/db";
+export { db } from "@discord-forms/db";

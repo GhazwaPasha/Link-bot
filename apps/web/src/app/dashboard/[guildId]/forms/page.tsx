@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { forms as formsTable } from "@discord-forms/db";
+import { desc, eq } from "drizzle-orm";
 import { deleteFormAction, duplicateFormAction } from "./actions";
 import { CreateFormDialog } from "@/components/CreateFormDialog";
 import { Button } from "@/components/ui/button";
@@ -8,9 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Copy, FileText } from "lucide-react";
 
 export default async function FormsListPage({ params }: { params: { guildId: string } }) {
-  const forms = await prisma.form.findMany({
-    where: { guildId: params.guildId },
-    orderBy: { createdAt: "desc" },
+  const forms = await db.query.forms.findMany({
+    where: eq(formsTable.guildId, params.guildId),
+    orderBy: desc(formsTable.createdAt),
   });
 
   return (

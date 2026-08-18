@@ -10,7 +10,7 @@ export interface WebhookConfig {
 
 export async function postToWebhook(config: WebhookConfig, form: Form, submission: Submission) {
   const fields = formFieldsSchema.parse(form.fields);
-  const answers = submission.answers as Record<string, string>;
+  const answers = submission.answers;
 
   const body = JSON.stringify({
     formId: form.id,

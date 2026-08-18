@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { formFieldsSchema } from "@discord-forms/shared";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { forms } from "@discord-forms/db";
+import { eq } from "drizzle-orm";
 import { checkGuildAccess } from "@/lib/apiAuth";
 
 const patchSchema = z.object({
@@ -13,7 +15,7 @@ const patchSchema = z.object({
 });
 
 async function getFormOr404(formId: string) {
-  const form = await prisma.form.findUnique({ where: { id: formId } });
+  const form = await db.query.forms.findFirst({ where: eq(forms.id, formId) });
   return form;
 }
 
@@ -39,10 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { formId: st
     return NextResponse.json({ error: "Invalid body", issues: parsed.error.issues }, { status: 400 });
   }
 
-  const updated = await prisma.form.update({
-    where: { id: params.formId },
-    data: parsed.data,
-  });
+  const [updated] = await db.update(forms).set(parsed.data).where(eq(forms.id, params.formId)).returning();
 
   return NextResponse.json(updated);
 }
@@ -54,6 +53,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: { formId: 
   const access = await checkGuildAccess(form.guildId);
   if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: access.status });
 
-  await prisma.form.delete({ where: { id: params.formId } });
+  await db.delete(forms).where(eq(forms.id, params.formId));
   return NextResponse.json({ ok: true });
 }

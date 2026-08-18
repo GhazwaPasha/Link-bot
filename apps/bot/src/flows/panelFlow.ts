@@ -1,5 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, TextChannel } from "discord.js";
-import { prisma, type Panel, type PanelButton, type PanelButtonStyle } from "@discord-forms/db";
+import { db, panels, type Panel, type PanelButton, type PanelButtonStyle } from "@discord-forms/db";
+import { eq } from "drizzle-orm";
 import { CustomId } from "../customIds";
 
 const STYLE_MAP: Record<PanelButtonStyle, ButtonStyle> = {
@@ -51,10 +52,7 @@ export async function postPanelMessage(client: Client, panel: Panel & { buttons:
     components: buildPanelComponents(panel.buttons),
   });
 
-  await prisma.panel.update({
-    where: { id: panel.id },
-    data: { messageId: message.id },
-  });
+  await db.update(panels).set({ messageId: message.id }).where(eq(panels.id, panel.id));
 
   return message;
 }

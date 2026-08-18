@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { guilds } from "@discord-forms/db";
+import { sql } from "drizzle-orm";
 import { checkGuildAccess } from "@/lib/apiAuth";
 
 const patchSchema = z.object({
@@ -16,11 +18,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { guildId: s
     return NextResponse.json({ error: "Invalid body", issues: parsed.error.issues }, { status: 400 });
   }
 
-  const guild = await prisma.guild.upsert({
-    where: { guildId: params.guildId },
-    update: { reviewRoleIds: parsed.data.reviewRoleIds },
-    create: { guildId: params.guildId, reviewRoleIds: parsed.data.reviewRoleIds },
-  });
+  const [guild] = await db
+    .insert(guilds)
+    .values({ guildId: params.guildId, reviewRoleIds: parsed.data.reviewRoleIds })
+    .onConflictDoUpdate({
+      target: guilds.guildId,
+      set: { reviewRoleIds: parsed.data.reviewRoleIds, updatedAt: sql`now()` },
+    })
+    .returning();
 
   return NextResponse.json(guild);
 }

@@ -1,13 +1,18 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { forms } from "@discord-forms/db";
+import { and, count, eq } from "drizzle-orm";
 import { Card, CardContent } from "@/components/ui/card";
 import { FileText, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default async function OverviewPage({ params }: { params: { guildId: string } }) {
-  const [formCount, publishedCount] = await Promise.all([
-    prisma.form.count({ where: { guildId: params.guildId } }),
-    prisma.form.count({ where: { guildId: params.guildId, status: "PUBLISHED" } }),
+  const [[{ value: formCount }], [{ value: publishedCount }]] = await Promise.all([
+    db.select({ value: count() }).from(forms).where(eq(forms.guildId, params.guildId)),
+    db
+      .select({ value: count() })
+      .from(forms)
+      .where(and(eq(forms.guildId, params.guildId), eq(forms.status, "PUBLISHED"))),
   ]);
 
   const stats = [

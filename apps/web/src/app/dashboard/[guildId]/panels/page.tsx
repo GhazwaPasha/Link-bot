@@ -1,4 +1,6 @@
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { forms, panelButtons, panels as panelsTable } from "@discord-forms/db";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { CreatePanel } from "@/components/CreatePanel";
 import { PanelStatus } from "@/components/PanelStatus";
 import { Card } from "@/components/ui/card";
@@ -6,12 +8,15 @@ import { Badge } from "@/components/ui/badge";
 
 export default async function PanelsPage({ params }: { params: { guildId: string } }) {
   const [panels, publishedForms] = await Promise.all([
-    prisma.panel.findMany({
-      where: { guildId: params.guildId },
-      include: { buttons: { include: { form: true }, orderBy: { sortOrder: "asc" } } },
-      orderBy: { createdAt: "desc" },
+    db.query.panels.findMany({
+      where: eq(panelsTable.guildId, params.guildId),
+      with: { buttons: { with: { form: true }, orderBy: asc(panelButtons.sortOrder) } },
+      orderBy: desc(panelsTable.createdAt),
     }),
-    prisma.form.findMany({ where: { guildId: params.guildId, status: "PUBLISHED" }, select: { id: true, name: true, description: true } }),
+    db.query.forms.findMany({
+      where: and(eq(forms.guildId, params.guildId), eq(forms.status, "PUBLISHED")),
+      columns: { id: true, name: true, description: true },
+    }),
   ]);
 
   return (

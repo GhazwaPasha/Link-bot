@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { forms, panelButtons, panels } from "@discord-forms/db";
+import { and, eq, inArray } from "drizzle-orm";
 import { checkGuildAccess } from "@/lib/apiAuth";
 
 const buttonSchema = z.object({
@@ -27,32 +29,39 @@ export async function POST(req: NextRequest, { params }: { params: { guildId: st
   }
 
   const formIds = [...new Set(parsed.data.buttons.map((b) => b.formId))];
-  const publishedForms = await prisma.form.findMany({
-    where: { id: { in: formIds }, guildId: params.guildId, status: "PUBLISHED" },
-    select: { id: true },
+  const publishedForms = await db.query.forms.findMany({
+    where: and(inArray(forms.id, formIds), eq(forms.guildId, params.guildId), eq(forms.status, "PUBLISHED")),
+    columns: { id: true },
   });
   if (publishedForms.length !== formIds.length) {
     return NextResponse.json({ error: "One or more buttons target a form that isn't published." }, { status: 400 });
   }
 
   // messageId is left null — the bot's poller (or a live gateway connection) picks this up and posts it.
-  const panel = await prisma.panel.create({
-    data: {
-      guildId: params.guildId,
-      name: parsed.data.name,
-      description: parsed.data.description,
-      postChannelId: parsed.data.postChannelId,
-      buttons: {
-        create: parsed.data.buttons.map((b, i) => ({
+  const panel = await db.transaction(async (tx) => {
+    const [panelRow] = await tx
+      .insert(panels)
+      .values({
+        guildId: params.guildId,
+        name: parsed.data.name,
+        description: parsed.data.description,
+        postChannelId: parsed.data.postChannelId,
+      })
+      .returning();
+    const buttonRows = await tx
+      .insert(panelButtons)
+      .values(
+        parsed.data.buttons.map((b, i) => ({
+          panelId: panelRow.id,
           formId: b.formId,
           label: b.label,
           style: b.style,
           emoji: b.emoji,
           sortOrder: i,
         })),
-      },
-    },
-    include: { buttons: true },
+      )
+      .returning();
+    return { ...panelRow, buttons: buttonRows };
   });
 
   return NextResponse.json(panel);

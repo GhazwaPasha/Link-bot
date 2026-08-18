@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { panels } from "@discord-forms/db";
+import { eq } from "drizzle-orm";
 import { checkGuildAccess } from "@/lib/apiAuth";
 
 /**
@@ -13,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { guildId: st
   const access = await checkGuildAccess(params.guildId);
   if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: access.status });
 
-  const panel = await prisma.panel.findUnique({ where: { id: params.panelId } });
+  const panel = await db.query.panels.findFirst({ where: eq(panels.id, params.panelId) });
   if (!panel || panel.guildId !== params.guildId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -21,10 +23,11 @@ export async function POST(req: NextRequest, { params }: { params: { guildId: st
     return NextResponse.json({ error: "Panel hasn't failed, nothing to retry" }, { status: 400 });
   }
 
-  const updated = await prisma.panel.update({
-    where: { id: panel.id },
-    data: { failedAt: null, lastError: null },
-  });
+  const [updated] = await db
+    .update(panels)
+    .set({ failedAt: null, lastError: null })
+    .where(eq(panels.id, panel.id))
+    .returning();
 
   return NextResponse.json(updated);
 }

@@ -1,13 +1,16 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
-import type { Integration } from "@discord-forms/db";
+import { db } from "@/lib/db";
+import { forms, integrations as integrationsTable, type Integration } from "@discord-forms/db";
+import { and, eq } from "drizzle-orm";
 import { SettingsEditor } from "@/components/SettingsEditor";
 
 export default async function FormSettingsPage({ params }: { params: { guildId: string; formId: string } }) {
-  const form = await prisma.form.findFirst({ where: { id: params.formId, guildId: params.guildId } });
+  const form = await db.query.forms.findFirst({
+    where: and(eq(forms.id, params.formId), eq(forms.guildId, params.guildId)),
+  });
   if (!form) notFound();
 
-  const integrations = await prisma.integration.findMany({ where: { formId: form.id } });
+  const integrations = await db.query.integrations.findMany({ where: eq(integrationsTable.formId, form.id) });
   const webhookRow = integrations.find((i: Integration) => i.type === "WEBHOOK");
   const sheetsRow = integrations.find((i: Integration) => i.type === "SHEETS");
 

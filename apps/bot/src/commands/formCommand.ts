@@ -4,7 +4,8 @@ import {
   SlashCommandBuilder,
   type ChatInputCommandInteraction,
 } from "discord.js";
-import { prisma } from "@discord-forms/db";
+import { db, forms, guilds, panelButtons, panels } from "@discord-forms/db";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { formFieldsSchema, validateFormFields } from "@discord-forms/shared";
 import type { Command } from "../client";
 import { env } from "../env";
@@ -39,11 +40,15 @@ export const data = new SlashCommandBuilder()
   );
 
 async function ensureGuildRow(guildId: string, guildName: string | null, iconUrl: string | null) {
-  await prisma.guild.upsert({
-    where: { guildId },
-    update: { name: guildName ?? undefined, iconUrl: iconUrl ?? undefined },
-    create: { guildId, name: guildName ?? undefined, iconUrl: iconUrl ?? undefined },
-  });
+  // undefined (not null) for name/iconUrl on the update branch — matches Prisma's `?? undefined`
+  // behavior of leaving the existing value alone rather than overwriting it with NULL.
+  await db
+    .insert(guilds)
+    .values({ guildId, name: guildName ?? undefined, iconUrl: iconUrl ?? undefined })
+    .onConflictDoUpdate({
+      target: guilds.guildId,
+      set: { name: guildName ?? undefined, iconUrl: iconUrl ?? undefined, updatedAt: sql`now()` },
+    });
 }
 
 async function execute(interaction: ChatInputCommandInteraction) {
@@ -64,9 +69,7 @@ async function execute(interaction: ChatInputCommandInteraction) {
 
   if (sub === "create") {
     const name = interaction.options.getString("name", true);
-    const form = await prisma.form.create({
-      data: { guildId: interaction.guildId, name, fields: [] },
-    });
+    const [form] = await db.insert(forms).values({ guildId: interaction.guildId, name, fields: [] }).returning();
     await interaction.editReply({
       content: `Created draft form **${name}** (ID \`${form.id}\`). Finish building it at ${env.DASHBOARD_URL}/dashboard/${interaction.guildId}/forms/${form.id}, then run \`/form publish\`.`,
     });
@@ -74,19 +77,24 @@ async function execute(interaction: ChatInputCommandInteraction) {
   }
 
   if (sub === "list") {
-    const forms = await prisma.form.findMany({ where: { guildId: interaction.guildId }, orderBy: { createdAt: "desc" } });
-    if (forms.length === 0) {
+    const formRows = await db.query.forms.findMany({
+      where: eq(forms.guildId, interaction.guildId),
+      orderBy: desc(forms.createdAt),
+    });
+    if (formRows.length === 0) {
       await interaction.editReply({ content: "No forms yet — create one with `/form create`." });
       return;
     }
-    const lines = forms.map((f) => `\`${f.id}\` — **${f.name}** (${f.status.toLowerCase()})`);
+    const lines = formRows.map((f) => `\`${f.id}\` — **${f.name}** (${f.status.toLowerCase()})`);
     await interaction.editReply({ content: lines.join("\n") });
     return;
   }
 
   if (sub === "publish") {
     const formId = interaction.options.getString("form_id", true);
-    const form = await prisma.form.findFirst({ where: { id: formId, guildId: interaction.guildId } });
+    const form = await db.query.forms.findFirst({
+      where: and(eq(forms.id, formId), eq(forms.guildId, interaction.guildId)),
+    });
     if (!form) {
       await interaction.editReply({ content: "Form not found." });
       return;
@@ -101,7 +109,7 @@ async function execute(interaction: ChatInputCommandInteraction) {
       await interaction.editReply({ content: `Can't publish:\n${issues.map((i) => `- ${i.message}`).join("\n")}` });
       return;
     }
-    await prisma.form.update({ where: { id: form.id }, data: { status: "PUBLISHED" } });
+    await db.update(forms).set({ status: "PUBLISHED" }).where(eq(forms.id, form.id));
     await interaction.editReply({ content: `**${form.name}** is published. Use \`/form panel\` to post it.` });
     return;
   }
@@ -111,7 +119,9 @@ async function execute(interaction: ChatInputCommandInteraction) {
     const channel = interaction.options.getChannel("channel", true);
     const buttonLabel = interaction.options.getString("button_label") ?? "Submit";
 
-    const form = await prisma.form.findFirst({ where: { id: formId, guildId: interaction.guildId } });
+    const form = await db.query.forms.findFirst({
+      where: and(eq(forms.id, formId), eq(forms.guildId, interaction.guildId)),
+    });
     if (!form) {
       await interaction.editReply({ content: "Form not found." });
       return;
@@ -121,14 +131,16 @@ async function execute(interaction: ChatInputCommandInteraction) {
       return;
     }
 
-    const panel = await prisma.panel.create({
-      data: {
-        guildId: interaction.guildId,
-        name: form.name,
-        postChannelId: channel.id,
-        buttons: { create: [{ formId: form.id, label: buttonLabel }] },
-      },
-      include: { buttons: true },
+    const panel = await db.transaction(async (tx) => {
+      const [panelRow] = await tx
+        .insert(panels)
+        .values({ guildId: interaction.guildId, name: form.name, postChannelId: channel.id })
+        .returning();
+      const buttonRows = await tx
+        .insert(panelButtons)
+        .values({ panelId: panelRow.id, formId: form.id, label: buttonLabel })
+        .returning();
+      return { ...panelRow, buttons: buttonRows };
     });
     await postPanelMessage(interaction.client, panel);
     await interaction.editReply({ content: `Panel posted in <#${channel.id}>.` });
