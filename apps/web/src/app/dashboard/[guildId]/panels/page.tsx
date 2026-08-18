@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { CreatePanel } from "@/components/CreatePanel";
+import { PanelStatus } from "@/components/PanelStatus";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -24,7 +25,13 @@ export default async function PanelsPage({ params }: { params: { guildId: string
           <Card key={panel.id} className="p-4">
             <div className="mb-2 flex items-center justify-between">
               <p className="font-medium">{panel.name}</p>
-              <Badge variant={panel.messageId ? "default" : "secondary"}>{panel.messageId ? "Posted" : "Pending"}</Badge>
+              <PanelStatus
+                guildId={params.guildId}
+                panelId={panel.id}
+                messageId={panel.messageId}
+                failedAt={panel.failedAt}
+                lastError={panel.lastError}
+              />
             </div>
             <p className="mb-2 text-xs text-muted">#{panel.postChannelId}</p>
             <div className="flex flex-wrap gap-1.5">

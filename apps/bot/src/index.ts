@@ -8,6 +8,7 @@ import { registerGuildDelete } from "./events/guildDelete";
 import { registerInteractionCreate } from "./events/interactionCreate";
 import { startPanelPoller } from "./poller";
 import { startHealthServer } from "./health";
+import { reconcileGuilds } from "./reconcileGuilds";
 
 // discord.js's Client emits async listener rejections as an 'error' event
 // (captureRejections) — with no listener for that, Node treats it as
@@ -50,7 +51,14 @@ async function main() {
   registerGuildDelete(client);
   registerInteractionCreate(client);
 
-  client.once("ready", () => startPanelPoller(client));
+  client.once("ready", async () => {
+    // Must finish before the poller starts, so it never retries a panel
+    // whose guild we've actually left (see reconcileGuilds.ts).
+    await reconcileGuilds(client).catch((err) =>
+      console.error("Failed to reconcile guilds on startup:", err),
+    );
+    startPanelPoller(client);
+  });
 
   await client.login(env.DISCORD_TOKEN);
 }
