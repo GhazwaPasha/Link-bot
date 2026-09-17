@@ -1,0 +1,1 @@
+ALTER TABLE "forms" ADD COLUMN "confirmation_message" text DEFAULT 'Thanks — your submission has been recorded.' NOT NULL;

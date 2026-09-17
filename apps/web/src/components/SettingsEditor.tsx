@@ -25,6 +25,7 @@ export function SettingsEditor({
   initialOutputChannelId,
   initialApproveButtonLabel,
   initialRejectButtonLabel,
+  initialConfirmationMessage,
   initialIntegrations,
 }: {
   guildId: string;
@@ -35,6 +36,7 @@ export function SettingsEditor({
   initialOutputChannelId: string | null;
   initialApproveButtonLabel: string;
   initialRejectButtonLabel: string;
+  initialConfirmationMessage: string;
   initialIntegrations: IntegrationInit;
 }) {
   const router = useRouter();
@@ -44,6 +46,7 @@ export function SettingsEditor({
   const [outputChannelId, setOutputChannelId] = useState(initialOutputChannelId);
   const [approveButtonLabel, setApproveButtonLabel] = useState(initialApproveButtonLabel);
   const [rejectButtonLabel, setRejectButtonLabel] = useState(initialRejectButtonLabel);
+  const [confirmationMessage, setConfirmationMessage] = useState(initialConfirmationMessage);
   const [savingGeneral, setSavingGeneral] = useState(false);
 
   const [webhook, setWebhook] = useState(initialIntegrations.webhook ?? { url: "", secret: "", enabled: false });
@@ -59,7 +62,15 @@ export function SettingsEditor({
     await fetch(`/api/forms/${formId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description, reviewChannelId, outputChannelId, approveButtonLabel, rejectButtonLabel }),
+      body: JSON.stringify({
+        name,
+        description,
+        reviewChannelId,
+        outputChannelId,
+        approveButtonLabel,
+        rejectButtonLabel,
+        confirmationMessage,
+      }),
     });
     setSavingGeneral(false);
     setMessage("Saved.");
@@ -149,6 +160,22 @@ export function SettingsEditor({
             <Label>Reject button text</Label>
             <Input value={rejectButtonLabel} onChange={(e) => setRejectButtonLabel(e.target.value)} maxLength={80} />
           </div>
+        </div>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Confirmation message</h2>
+        <div className="flex flex-col gap-1.5">
+          <Label>Shown to the submitter right after they submit</Label>
+          <Textarea
+            value={confirmationMessage}
+            onChange={(e) => setConfirmationMessage(e.target.value)}
+            maxLength={500}
+            rows={2}
+          />
+          <p className="text-xs text-muted">
+            Used on the public web form's success screen, and in the ephemeral reply after a Discord submission.
+          </p>
         </div>
       </section>
 

@@ -70,6 +70,9 @@ export const forms = pgTable(
     webFormEnabled: boolean("web_form_enabled").notNull().default(false),
     approveButtonLabel: text("approve_button_label").notNull().default("Approve"),
     rejectButtonLabel: text("reject_button_label").notNull().default("Reject"),
+    // Shown to the submitter right after they submit — the public web form's success
+    // screen, and the ephemeral reply after a Discord modal submission.
+    confirmationMessage: text("confirmation_message").notNull().default("Thanks — your submission has been recorded."),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

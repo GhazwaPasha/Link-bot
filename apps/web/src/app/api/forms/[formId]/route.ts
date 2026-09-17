@@ -16,6 +16,7 @@ const patchSchema = z.object({
   // 80 chars matches discord.js's ButtonBuilder label cap.
   approveButtonLabel: z.string().min(1).max(80).optional(),
   rejectButtonLabel: z.string().min(1).max(80).optional(),
+  confirmationMessage: z.string().min(1).max(500).optional(),
 });
 
 async function getFormOr404(formId: string) {

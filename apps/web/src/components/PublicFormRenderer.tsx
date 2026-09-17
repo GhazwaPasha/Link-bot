@@ -36,11 +36,13 @@ export function PublicFormRenderer({
   formName,
   formDescription,
   fields,
+  confirmationMessage,
 }: {
   formId: string;
   formName: string;
   formDescription: string | null;
   fields: FormField[];
+  confirmationMessage: string;
 }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [checkboxValues, setCheckboxValues] = useState<Record<string, string[]>>({});
@@ -112,7 +114,7 @@ export function PublicFormRenderer({
     return (
       <div ref={containerRef} className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-8 text-center">
         <CheckCircle2 className="h-8 w-8 text-success" />
-        <p className="text-sm text-muted">Thanks — your submission has been recorded.</p>
+        <p className="text-sm text-muted">{confirmationMessage}</p>
       </div>
     );
   }

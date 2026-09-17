@@ -13,7 +13,13 @@ export default async function PublicFormPage({ params }: { params: { formId: str
 
   return (
     <main className="mx-auto max-w-xl px-4 py-10">
-      <PublicFormRenderer formId={form.id} formName={form.name} formDescription={form.description} fields={fields} />
+      <PublicFormRenderer
+        formId={form.id}
+        formName={form.name}
+        formDescription={form.description}
+        fields={fields}
+        confirmationMessage={form.confirmationMessage}
+      />
     </main>
   );
 }

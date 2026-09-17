@@ -171,7 +171,7 @@ export async function finalizeSubmission(
     }
   }
 
-  await respond(interaction, { content: "Thanks — your submission has been recorded!" });
+  await respond(interaction, { content: form.confirmationMessage });
 }
 
 async function canReview(interaction: ButtonInteraction): Promise<boolean> {
