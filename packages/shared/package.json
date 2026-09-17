@@ -4,13 +4,26 @@
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./integrations": {
+      "types": "./dist/integrations/index.d.ts",
+      "default": "./dist/integrations/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "google-auth-library": "^9.14.1",
+    "googleapis": "^144.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/node": "^22.7.4",
     "typescript": "^5.6.0"
   }
 }

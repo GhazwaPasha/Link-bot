@@ -15,6 +15,7 @@ const TYPE_LABELS: Record<FieldType, string> = {
   user_select: "User select",
   role_select: "Role select",
   channel_select: "Channel select",
+  image: "Image (web form only)",
 };
 
 const HAS_OPTIONS: FieldType[] = ["dropdown", "checkbox"];

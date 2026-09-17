@@ -1,5 +1,6 @@
 import {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
@@ -10,11 +11,10 @@ import {
   type Client,
   type ModalSubmitInteraction,
 } from "discord.js";
-import { db, guilds, submissions, type Form } from "@discord-forms/db";
+import { db, guilds, submissions, type Form, type Submission } from "@discord-forms/db";
 import { and, eq } from "drizzle-orm";
-import { formatAnswerValue, type FormField } from "@discord-forms/shared";
+import { CustomId, formatAnswerValue, type FormField } from "@discord-forms/shared";
 import type { SubmissionSession } from "../state/submissionSession";
-import { CustomId } from "../customIds";
 import { runIntegrations } from "../integrations";
 
 /**
@@ -33,44 +33,78 @@ async function resolveDisplayName(client: Client, guildId: string, userId: strin
   }
 }
 
-function buildSubmissionEmbed(form: Form, fields: FormField[], answers: Record<string, string>, submitterName: string) {
+/** Discord-native submissions can show who submitted; web submissions have no Discord identity to resolve. */
+async function resolveSubmitterDescription(client: Client, submission: Submission): Promise<string> {
+  if (submission.source === "WEB") return "Submitted via the public web form";
+  const name = await resolveDisplayName(client, submission.guildId, submission.userId);
+  return `Submitted by ${name}`;
+}
+
+function buildSubmissionEmbed(form: Form, fields: FormField[], answers: Record<string, string>, description: string) {
+  // Image fields never reach here — they're web-only and the public form delivers
+  // its own message directly (see apps/web/.../submit/route.ts); this filter is
+  // just defense-in-depth in case a stray one ever shows up in `fields`.
+  const textFields = fields.filter((f) => f.type !== "image");
   return new EmbedBuilder()
     .setTitle(form.name)
-    .setDescription(`Submitted by ${submitterName}`)
+    .setDescription(description)
     .setColor(0x6366f1)
-    .addFields(fields.map((f) => ({ name: f.label, value: formatAnswerValue(f, answers[f.id]), inline: false })))
+    .addFields(textFields.map((f) => ({ name: f.label, value: formatAnswerValue(f, answers[f.id]), inline: false })))
     .setTimestamp();
 }
 
-function buildReviewButtons(submissionId: string) {
+/**
+ * Re-downloads whatever's attached to the review message itself (Discord's own CDN
+ * is the only place an image ever lives — nothing is staged on our side) so it can
+ * ride along to the output channel when a reviewer approves. For Discord-native
+ * submissions this is always empty, since image fields can't reach a Discord modal.
+ */
+async function loadReviewMessageAttachments(interaction: ButtonInteraction): Promise<AttachmentBuilder[]> {
+  const attachments = await Promise.all(
+    [...interaction.message.attachments.values()].map(async (a) => {
+      try {
+        const res = await fetch(a.url);
+        if (!res.ok) return null;
+        const buffer = Buffer.from(await res.arrayBuffer());
+        return new AttachmentBuilder(buffer, { name: a.name });
+      } catch (err) {
+        console.error(`[reviewFlow] failed to re-fetch attachment ${a.url}:`, err);
+        return null;
+      }
+    }),
+  );
+  return attachments.filter((a): a is AttachmentBuilder => a !== null);
+}
+
+function buildReviewButtons(submissionId: string, approveLabel: string, rejectLabel: string) {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(CustomId.submissionApprove(submissionId)).setLabel("Approve").setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(CustomId.submissionReject(submissionId)).setLabel("Reject").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(CustomId.submissionApprove(submissionId)).setLabel(approveLabel).setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(CustomId.submissionReject(submissionId)).setLabel(rejectLabel).setStyle(ButtonStyle.Danger),
   );
 }
 
 /** Shown the instant a reviewer's click is accepted, while the DB write is still in flight. */
-function buildPendingButtons(submissionId: string, approving: boolean) {
+function buildPendingButtons(submissionId: string, approving: boolean, approveLabel: string, rejectLabel: string) {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(CustomId.submissionApprove(submissionId))
-      .setLabel(approving ? "Approving…" : "Approve")
+      .setLabel(approving ? "Working…" : approveLabel)
       .setStyle(ButtonStyle.Success)
       .setDisabled(true),
     new ButtonBuilder()
       .setCustomId(CustomId.submissionReject(submissionId))
-      .setLabel(approving ? "Reject" : "Rejecting…")
+      .setLabel(!approving ? "Working…" : rejectLabel)
       .setStyle(ButtonStyle.Danger)
       .setDisabled(true),
   );
 }
 
 /** Terminal state — a single disabled button recording who decided and how. */
-function buildResolvedButtons(submissionId: string, approved: boolean, reviewerName: string) {
+function buildResolvedButtons(submissionId: string, approved: boolean, reviewerName: string, approveLabel: string, rejectLabel: string) {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(CustomId.submissionResolved(submissionId))
-      .setLabel(approved ? `Approved by ${reviewerName}` : `Rejected by ${reviewerName}`)
+      .setLabel(`${approved ? approveLabel : rejectLabel} — ${reviewerName}`)
       .setStyle(approved ? ButtonStyle.Success : ButtonStyle.Danger)
       .setDisabled(true),
   );
@@ -89,11 +123,11 @@ async function respond(
   }
 }
 
-async function postOutput(interaction: ButtonInteraction | ModalSubmitInteraction, form: Form, embed: EmbedBuilder) {
+async function postOutput(client: Client, form: Form, embed: EmbedBuilder, files: AttachmentBuilder[]) {
   if (!form.outputChannelId) return;
-  const channel = await interaction.client.channels.fetch(form.outputChannelId).catch(() => null);
+  const channel = await client.channels.fetch(form.outputChannelId).catch(() => null);
   if (channel instanceof TextChannel) {
-    await channel.send({ embeds: [embed] });
+    await channel.send({ embeds: [embed], files });
   }
 }
 
@@ -113,22 +147,26 @@ export async function finalizeSubmission(
       userId: session.userId,
       answers: session.answers,
       status: autoApprove ? "APPROVED" : "PENDING",
+      source: "DISCORD",
       reviewChannelId: form.reviewChannelId,
       outputChannelId: form.outputChannelId,
       reviewedAt: autoApprove ? new Date() : null,
     })
     .returning();
 
-  const submitterName = await resolveDisplayName(interaction.client, session.guildId, session.userId);
-  const embed = buildSubmissionEmbed(form, fields, session.answers, submitterName);
+  const description = await resolveSubmitterDescription(interaction.client, submission);
+  const embed = buildSubmissionEmbed(form, fields, submission.answers, description);
 
   if (autoApprove) {
-    await postOutput(interaction, form, embed);
+    await postOutput(interaction.client, form, embed, []);
     await runIntegrations(form, submission);
   } else {
     const channel = await interaction.client.channels.fetch(form.reviewChannelId!).catch(() => null);
     if (channel instanceof TextChannel) {
-      const message = await channel.send({ embeds: [embed], components: [buildReviewButtons(submission.id)] });
+      const message = await channel.send({
+        embeds: [embed],
+        components: [buildReviewButtons(submission.id, form.approveButtonLabel, form.rejectButtonLabel)],
+      });
       await db.update(submissions).set({ reviewMessageId: message.id }).where(eq(submissions.id, submission.id));
     }
   }
@@ -163,9 +201,13 @@ async function resolveReviewDecision(interaction: ButtonInteraction, submissionI
     return;
   }
 
+  const pending = await db.query.submissions.findFirst({ where: eq(submissions.id, submissionId), with: { form: true } });
+  const approveLabel = pending?.form.approveButtonLabel ?? "Approve";
+  const rejectLabel = pending?.form.rejectButtonLabel ?? "Reject";
+
   // Flip the buttons into a disabled "in progress" state right away so the
   // message doesn't look clickable again while the DB round-trip below runs.
-  await interaction.editReply({ components: [buildPendingButtons(submissionId, approve)] });
+  await interaction.editReply({ components: [buildPendingButtons(submissionId, approve, approveLabel, rejectLabel)] });
 
   // Atomically claim the submission — guards against two reviewers racing
   // (e.g. one hits Approve while another hits Reject before either write lands).
@@ -195,20 +237,24 @@ async function resolveReviewDecision(interaction: ButtonInteraction, submissionI
   }
 
   const decidedApprove = submission.status === "APPROVED";
-  const [submitterName, reviewerName] = await Promise.all([
-    resolveDisplayName(interaction.client, submission.guildId, submission.userId),
-    resolveDisplayName(interaction.client, submission.guildId, submission.reviewedBy!),
-  ]);
+  const description = await resolveSubmitterDescription(interaction.client, submission);
+  const reviewerName = await resolveDisplayName(interaction.client, submission.guildId, submission.reviewedBy!);
 
   const fields = submission.form.fields ?? [];
-  const embed = buildSubmissionEmbed(submission.form, fields, submission.answers, submitterName).setFooter({
-    text: `${decidedApprove ? "Approved" : "Rejected"} by ${reviewerName}`,
+  const embed = buildSubmissionEmbed(submission.form, fields, submission.answers, description).setFooter({
+    text: `${decidedApprove ? submission.form.approveButtonLabel : submission.form.rejectButtonLabel} — ${reviewerName}`,
   });
 
-  await interaction.editReply({ embeds: [embed], components: [buildResolvedButtons(submissionId, decidedApprove, reviewerName)] });
+  await interaction.editReply({
+    embeds: [embed],
+    components: [
+      buildResolvedButtons(submissionId, decidedApprove, reviewerName, submission.form.approveButtonLabel, submission.form.rejectButtonLabel),
+    ],
+  });
 
   if (claim.length === 1 && decidedApprove) {
-    await postOutput(interaction, submission.form, embed);
+    const files = await loadReviewMessageAttachments(interaction);
+    await postOutput(interaction.client, submission.form, embed, files);
     await runIntegrations(submission.form, submission);
   }
 }

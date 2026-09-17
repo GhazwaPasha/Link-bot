@@ -8,8 +8,9 @@ import { isSelectField } from "@discord-forms/shared";
  * it's a hand-built approximation matching Discord's actual modal styling.
  */
 export function DiscordModalPreview({ title, fields }: { title: string; fields: FormField[] }) {
-  const textFields = fields.filter((f) => !isSelectField(f.type));
+  const textFields = fields.filter((f) => !isSelectField(f.type) && f.type !== "image");
   const selectFields = fields.filter((f) => isSelectField(f.type));
+  const imageFields = fields.filter((f) => f.type === "image");
 
   return (
     <div className="w-full max-w-sm overflow-hidden rounded-lg border border-[#3a3b45] bg-[#2b2d31] shadow-xl">
@@ -19,7 +20,7 @@ export function DiscordModalPreview({ title, fields }: { title: string; fields: 
       </div>
 
       <div className="max-h-80 space-y-4 overflow-y-auto px-4 py-4">
-        {textFields.length === 0 && selectFields.length === 0 && (
+        {textFields.length === 0 && selectFields.length === 0 && imageFields.length === 0 && (
           <p className="text-xs text-[#96989d]">Add a field to see it here.</p>
         )}
 
@@ -27,6 +28,14 @@ export function DiscordModalPreview({ title, fields }: { title: string; fields: 
           <div className="rounded border border-dashed border-[#4a4c56] p-2 text-[11px] text-[#96989d]">
             {selectFields.length} select field{selectFields.length > 1 ? "s" : ""} ({selectFields.map((f) => f.label).join(", ")}) are
             collected in a menu step right before this modal opens.
+          </div>
+        )}
+
+        {imageFields.length > 0 && (
+          <div className="rounded border border-dashed border-[#4a4c56] p-2 text-[11px] text-[#96989d]">
+            {imageFields.length} image field{imageFields.length > 1 ? "s" : ""} ({imageFields.map((f) => f.label).join(", ")}) can't appear
+            in a Discord modal — they only show up on the public web form, and this form can't be published to a Discord panel until
+            they're removed.
           </div>
         )}
 

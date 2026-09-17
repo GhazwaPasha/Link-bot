@@ -4,6 +4,10 @@ import { z } from "zod";
  * Discord modals only support single-line/paragraph text inputs (max 5 per modal).
  * Every other field type is collected via a chained ephemeral select-menu message
  * that runs *before* the modal opens for any remaining text fields.
+ *
+ * "image" is the one type with no Discord-native equivalent — Discord modals can't
+ * accept file uploads at all. It only ever renders on the public web-form page, and
+ * validateFormFields() below rejects it for Discord/panel publishing.
  */
 export const FIELD_TYPES = [
   "short_text",
@@ -13,6 +17,7 @@ export const FIELD_TYPES = [
   "user_select",
   "role_select",
   "channel_select",
+  "image",
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number];
@@ -25,6 +30,8 @@ export const SELECT_FIELD_TYPES: FieldType[] = [
   "role_select",
   "channel_select",
 ];
+/** Field types that only mean something inside Discord itself (picked from a live guild roster) — no equivalent on a public web page. */
+export const DISCORD_ONLY_FIELD_TYPES: FieldType[] = ["user_select", "role_select", "channel_select"];
 
 export const MAX_MODAL_TEXT_FIELDS = 5;
 export const MAX_SELECT_FIELDS = 4; // 1 select menu per action row, 5 rows/message, keep 1 free for a "Continue" affordance if needed
@@ -90,6 +97,27 @@ export function validateFormFields(fields: FormField[]): FieldValidationIssue[] 
     });
   }
   for (const f of fields) {
+    if ((f.type === "dropdown" || f.type === "checkbox") && (!f.options || f.options.length === 0)) {
+      issues.push({ fieldId: f.id, message: "Dropdown/checkbox fields need at least one option." });
+    }
+    if (f.type === "image") {
+      issues.push({ fieldId: f.id, message: "Image fields aren't supported in Discord modals — use the public web form instead." });
+    }
+  }
+  return issues;
+}
+
+/**
+ * Validates a field list for the public web-form page, which has none of Discord
+ * modals' structural limits (field count, action-row caps) but can't render the
+ * Discord-only picker types since a web visitor has no guild roster to pick from.
+ */
+export function validateWebFormFields(fields: FormField[]): FieldValidationIssue[] {
+  const issues: FieldValidationIssue[] = [];
+  for (const f of fields) {
+    if (DISCORD_ONLY_FIELD_TYPES.includes(f.type)) {
+      issues.push({ fieldId: f.id, message: `"${f.label || f.type}" only works inside Discord — remove it before enabling the public web form.` });
+    }
     if ((f.type === "dropdown" || f.type === "checkbox") && (!f.options || f.options.length === 0)) {
       issues.push({ fieldId: f.id, message: "Dropdown/checkbox fields need at least one option." });
     }

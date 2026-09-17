@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { formFieldsSchema } from "@discord-forms/shared";
+import { formFieldsSchema, validateWebFormFields } from "@discord-forms/shared";
 import { db } from "@/lib/db";
 import { forms } from "@discord-forms/db";
 import { eq } from "drizzle-orm";
@@ -12,6 +12,10 @@ const patchSchema = z.object({
   fields: formFieldsSchema.optional(),
   reviewChannelId: z.string().nullable().optional(),
   outputChannelId: z.string().nullable().optional(),
+  webFormEnabled: z.boolean().optional(),
+  // 80 chars matches discord.js's ButtonBuilder label cap.
+  approveButtonLabel: z.string().min(1).max(80).optional(),
+  rejectButtonLabel: z.string().min(1).max(80).optional(),
 });
 
 async function getFormOr404(formId: string) {
@@ -39,6 +43,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { formId: st
   const parsed = patchSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid body", issues: parsed.error.issues }, { status: 400 });
+  }
+
+  if (parsed.data.webFormEnabled) {
+    const fields = formFieldsSchema.parse(parsed.data.fields ?? form.fields);
+    if (fields.length === 0) {
+      return NextResponse.json({ error: "Add at least one field before enabling the public web form." }, { status: 400 });
+    }
+    const issues = validateWebFormFields(fields);
+    if (issues.length > 0) {
+      return NextResponse.json({ error: "Form isn't ready for the public web form", issues }, { status: 400 });
+    }
   }
 
   const [updated] = await db.update(forms).set(parsed.data).where(eq(forms.id, params.formId)).returning();

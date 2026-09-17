@@ -23,6 +23,8 @@ export function SettingsEditor({
   initialDescription,
   initialReviewChannelId,
   initialOutputChannelId,
+  initialApproveButtonLabel,
+  initialRejectButtonLabel,
   initialIntegrations,
 }: {
   guildId: string;
@@ -31,6 +33,8 @@ export function SettingsEditor({
   initialDescription: string;
   initialReviewChannelId: string | null;
   initialOutputChannelId: string | null;
+  initialApproveButtonLabel: string;
+  initialRejectButtonLabel: string;
   initialIntegrations: IntegrationInit;
 }) {
   const router = useRouter();
@@ -38,6 +42,8 @@ export function SettingsEditor({
   const [description, setDescription] = useState(initialDescription);
   const [reviewChannelId, setReviewChannelId] = useState(initialReviewChannelId);
   const [outputChannelId, setOutputChannelId] = useState(initialOutputChannelId);
+  const [approveButtonLabel, setApproveButtonLabel] = useState(initialApproveButtonLabel);
+  const [rejectButtonLabel, setRejectButtonLabel] = useState(initialRejectButtonLabel);
   const [savingGeneral, setSavingGeneral] = useState(false);
 
   const [webhook, setWebhook] = useState(initialIntegrations.webhook ?? { url: "", secret: "", enabled: false });
@@ -53,7 +59,7 @@ export function SettingsEditor({
     await fetch(`/api/forms/${formId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description, reviewChannelId, outputChannelId }),
+      body: JSON.stringify({ name, description, reviewChannelId, outputChannelId, approveButtonLabel, rejectButtonLabel }),
     });
     setSavingGeneral(false);
     setMessage("Saved.");
@@ -128,6 +134,20 @@ export function SettingsEditor({
           <div className="flex flex-col gap-1.5">
             <Label>Output channel</Label>
             <ChannelSelect guildId={guildId} value={outputChannelId} onChange={setOutputChannelId} />
+          </div>
+        </div>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Review buttons</h2>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label>Approve button text</Label>
+            <Input value={approveButtonLabel} onChange={(e) => setApproveButtonLabel(e.target.value)} maxLength={80} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Reject button text</Label>
+            <Input value={rejectButtonLabel} onChange={(e) => setRejectButtonLabel(e.target.value)} maxLength={80} />
           </div>
         </div>
       </section>

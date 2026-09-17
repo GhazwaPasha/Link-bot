@@ -1,6 +1,7 @@
 import { google } from "googleapis";
-import type { Form, Submission } from "@discord-forms/db";
-import { formatAnswerValue, formFieldsSchema } from "@discord-forms/shared";
+import { formatAnswerValue } from "../answers";
+import { formFieldsSchema } from "../fields";
+import type { IntegrationForm, IntegrationSubmission } from "./types";
 
 export interface SheetsConfig {
   spreadsheetId: string;
@@ -9,7 +10,7 @@ export interface SheetsConfig {
   serviceAccountJson: string;
 }
 
-export async function appendToSheet(config: SheetsConfig, form: Form, submission: Submission) {
+export async function appendToSheet(config: SheetsConfig, form: IntegrationForm, submission: IntegrationSubmission) {
   const credentials = JSON.parse(config.serviceAccountJson);
   const auth = new google.auth.JWT({
     email: credentials.client_email,

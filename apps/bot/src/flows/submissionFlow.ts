@@ -16,11 +16,12 @@ import {
 import { db, forms } from "@discord-forms/db";
 import { eq } from "drizzle-orm";
 import {
+  CustomId,
   formFieldsSchema,
+  parseCustomId,
   splitFieldsForFlow,
   type FormField,
 } from "@discord-forms/shared";
-import { CustomId, parseCustomId } from "../customIds";
 import { createSession, deleteSession, getSession, updateSessionAnswer } from "../state/submissionSession";
 import { getPanelButtonCached } from "../state/panelButtonCache";
 import { finalizeSubmission } from "./reviewFlow";

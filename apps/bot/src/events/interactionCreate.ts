@@ -1,6 +1,6 @@
 import { Events, type Interaction } from "discord.js";
 import type { BotClient } from "../client";
-import { parseCustomId } from "../customIds";
+import { parseCustomId } from "@discord-forms/shared";
 import { handlePanelSubmit, handleSessionContinue, handleSessionModalSubmit, handleSessionSelect } from "../flows/submissionFlow";
 import { handleSubmissionApprove, handleSubmissionReject } from "../flows/reviewFlow";
 

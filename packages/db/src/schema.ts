@@ -25,11 +25,13 @@ export const formStatusEnum = pgEnum("FormStatus", ["DRAFT", "PUBLISHED"]);
 export const submissionStatusEnum = pgEnum("SubmissionStatus", ["PENDING", "APPROVED", "REJECTED"]);
 export const integrationTypeEnum = pgEnum("IntegrationType", ["SHEETS", "WEBHOOK"]);
 export const panelButtonStyleEnum = pgEnum("PanelButtonStyle", ["PRIMARY", "SECONDARY", "SUCCESS", "DANGER"]);
+export const submissionSourceEnum = pgEnum("SubmissionSource", ["DISCORD", "WEB"]);
 
 export type FormStatus = (typeof formStatusEnum.enumValues)[number];
 export type SubmissionStatus = (typeof submissionStatusEnum.enumValues)[number];
 export type IntegrationType = (typeof integrationTypeEnum.enumValues)[number];
 export type PanelButtonStyle = (typeof panelButtonStyleEnum.enumValues)[number];
+export type SubmissionSource = (typeof submissionSourceEnum.enumValues)[number];
 
 const createdAt = () => timestamp("created_at").notNull().defaultNow();
 const updatedAt = () =>
@@ -62,6 +64,12 @@ export const forms = pgTable(
     status: formStatusEnum("status").notNull().default("DRAFT"),
     reviewChannelId: text("review_channel_id"),
     outputChannelId: text("output_channel_id"),
+    // Independent of `status` — status/publish gates Discord panel distribution
+    // (see validateFormFields), this gates the public web-form page. A form can
+    // be enabled for one channel, the other, or both.
+    webFormEnabled: boolean("web_form_enabled").notNull().default(false),
+    approveButtonLabel: text("approve_button_label").notNull().default("Approve"),
+    rejectButtonLabel: text("reject_button_label").notNull().default("Reject"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -122,6 +130,13 @@ export const submissions = pgTable(
     userId: text("user_id").notNull(),
     answers: jsonb("answers").$type<Record<string, string>>().notNull().default({}),
     status: submissionStatusEnum("status").notNull().default("PENDING"),
+    // "DISCORD" rows come through the modal flow (finalizeSubmission); "WEB" rows are
+    // posted directly to Discord by the web app itself at submit time (it already
+    // holds the bot token for read calls) — there's no async handoff to the bot for
+    // the initial post, only for review-button clicks, which route through Discord's
+    // gateway to the bot regardless of which process created the message.
+    source: submissionSourceEnum("source").notNull().default("DISCORD"),
+    ip: text("ip"),
     reviewChannelId: text("review_channel_id"),
     reviewMessageId: text("review_message_id"),
     outputChannelId: text("output_channel_id"),

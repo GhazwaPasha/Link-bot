@@ -25,6 +25,8 @@ export default async function FormSettingsPage({ params }: { params: { guildId: 
       initialDescription={form.description ?? ""}
       initialReviewChannelId={form.reviewChannelId}
       initialOutputChannelId={form.outputChannelId}
+      initialApproveButtonLabel={form.approveButtonLabel}
+      initialRejectButtonLabel={form.rejectButtonLabel}
       initialIntegrations={{
         webhook: webhookRow
           ? { url: webhookConfig.url ?? "", secret: webhookConfig.secret ?? "", enabled: webhookRow.enabled }

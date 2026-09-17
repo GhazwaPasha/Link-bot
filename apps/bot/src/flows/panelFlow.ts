@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, TextChannel } from "discord.js";
 import { db, panels, type Panel, type PanelButton, type PanelButtonStyle } from "@discord-forms/db";
 import { eq } from "drizzle-orm";
-import { CustomId } from "../customIds";
+import { CustomId } from "@discord-forms/shared";
 
 const STYLE_MAP: Record<PanelButtonStyle, ButtonStyle> = {
   PRIMARY: ButtonStyle.Primary,

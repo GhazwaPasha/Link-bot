@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
-import type { Form, Submission } from "@discord-forms/db";
-import { formatAnswerValue, formFieldsSchema } from "@discord-forms/shared";
+import { formatAnswerValue } from "../answers";
+import { formFieldsSchema } from "../fields";
+import type { IntegrationForm, IntegrationSubmission } from "./types";
 
 export interface WebhookConfig {
   url: string;
@@ -8,7 +9,7 @@ export interface WebhookConfig {
   secret?: string;
 }
 
-export async function postToWebhook(config: WebhookConfig, form: Form, submission: Submission) {
+export async function postToWebhook(config: WebhookConfig, form: IntegrationForm, submission: IntegrationSubmission) {
   const fields = formFieldsSchema.parse(form.fields);
   const answers = submission.answers;
 

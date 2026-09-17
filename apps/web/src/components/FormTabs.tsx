@@ -9,6 +9,7 @@ export function FormTabs({ guildId, formId }: { guildId: string; formId: string 
   const base = `/dashboard/${guildId}/forms/${formId}`;
   const tabs = [
     { label: "Questions", href: base },
+    { label: "Web Form", href: `${base}/web` },
     { label: "Settings", href: `${base}/settings` },
   ];
   const active = tabs.find((t) => t.href === pathname)?.href ?? base;
