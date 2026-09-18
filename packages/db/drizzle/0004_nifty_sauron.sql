@@ -1,0 +1,3 @@
+CREATE SEQUENCE "public"."form_serial_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1;--> statement-breakpoint
+ALTER TABLE "forms" ADD COLUMN "serial_number" text DEFAULT ('FRM-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('form_serial_seq')::text, 4, '0')) NOT NULL;--> statement-breakpoint
+ALTER TABLE "forms" ADD CONSTRAINT "forms_serial_number_unique" UNIQUE("serial_number");

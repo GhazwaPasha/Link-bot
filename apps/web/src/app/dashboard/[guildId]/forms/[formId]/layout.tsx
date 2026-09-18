@@ -25,6 +25,7 @@ export default async function FormLayout({
           <Badge variant={form.status === "PUBLISHED" ? "default" : "secondary"}>
             {form.status === "PUBLISHED" ? "Published" : "Draft"}
           </Badge>
+          <span className="text-xs text-muted">{form.serialNumber}</span>
         </div>
       </div>
       <FormTabs guildId={params.guildId} formId={params.formId} />

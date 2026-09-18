@@ -29,6 +29,13 @@
       "when": 1789654537472,
       "tag": "0003_loose_toro",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789691458231,
+      "tag": "0004_nifty_sauron",
+      "breakpoints": true
     }
   ]
 }

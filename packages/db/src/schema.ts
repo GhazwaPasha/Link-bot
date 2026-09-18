@@ -1,11 +1,12 @@
 import { createId } from "@paralleldrive/cuid2";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   index,
   integer,
   jsonb,
   pgEnum,
+  pgSequence,
   pgTable,
   text,
   timestamp,
@@ -40,6 +41,14 @@ const updatedAt = () =>
     .$defaultFn(() => new Date())
     .$onUpdateFn(() => new Date());
 
+// Backs `forms.serialNumber` — a DB sequence (rather than client-side generation like the
+// cuid `id`s) so the numeric part is guaranteed gap-free and race-safe under concurrent inserts.
+export const formSerialSeq = pgSequence("form_serial_seq", {
+  startWith: 1,
+  increment: 1,
+  minValue: 1,
+});
+
 export const guilds = pgTable("guilds", {
   guildId: text("guild_id").primaryKey(),
   name: text("name"),
@@ -55,6 +64,13 @@ export const forms = pgTable(
   "forms",
   {
     id: text("id").primaryKey().$defaultFn(() => createId()),
+    // Human-readable reference distinct from `id` — e.g. "FRM-2026-0001". DB-generated (not
+    // $defaultFn like `id`) because the sequence must be assigned atomically by Postgres to
+    // stay gap-free/unique under concurrent inserts.
+    serialNumber: text("serial_number")
+      .notNull()
+      .unique()
+      .default(sql`('FRM-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('form_serial_seq')::text, 4, '0'))`),
     guildId: text("guild_id")
       .notNull()
       .references(() => guilds.guildId, { onDelete: "cascade", onUpdate: "cascade" }),

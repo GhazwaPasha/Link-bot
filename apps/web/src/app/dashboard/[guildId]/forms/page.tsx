@@ -39,7 +39,9 @@ export default async function FormsListPage({ params }: { params: { guildId: str
                   {form.status === "PUBLISHED" ? "Published" : "Draft"}
                 </Badge>
               </div>
-              <p className="text-xs text-muted">Created {form.createdAt.toLocaleDateString()}</p>
+              <p className="text-xs text-muted">
+                {form.serialNumber} · Created {form.createdAt.toLocaleDateString()}
+              </p>
             </Link>
             <div className="absolute bottom-3 right-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
               <form action={duplicateFormAction}>
