@@ -3,6 +3,7 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 import type { BotClient } from "./client";
 import { postPanelMessage } from "./flows/panelFlow";
 import { env } from "./env";
+import { refreshPanelButtonCache } from "./state/panelButtonCache";
 
 /**
  * Panels created from the web dashboard only get a DB row (the bot process is the
@@ -20,6 +21,10 @@ import { env } from "./env";
  */
 export function startPanelPoller(client: BotClient) {
   const tick = async () => {
+    // Independent of panel posting below — a failed refresh just leaves the
+    // previous snapshot in place (see panelButtonCache.ts).
+    await refreshPanelButtonCache().catch((err) => console.error("[poller] panel button cache refresh failed:", err));
+
     try {
       const pendingPanels = await db.query.panels.findMany({
         where: and(isNull(panels.messageId), isNull(panels.failedAt)),

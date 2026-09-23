@@ -41,9 +41,9 @@ async function resolveSubmitterDescription(client: Client, submission: Submissio
 }
 
 function buildSubmissionEmbed(form: Form, fields: FormField[], answers: Record<string, string>, description: string) {
-  // Image fields never reach here — they're web-only and the public form delivers
-  // its own message directly (see apps/web/.../submit/route.ts); this filter is
-  // just defense-in-depth in case a stray one ever shows up in `fields`.
+  // Image fields never reach here — they're web-only, and web submissions' messages
+  // are built by buildWebSubmissionMessage (posted by the web app or the delivery
+  // poller); this filter is just defense-in-depth in case a stray one shows up.
   const textFields = fields.filter((f) => f.type !== "image");
   return new EmbedBuilder()
     .setTitle(form.name)
@@ -55,7 +55,8 @@ function buildSubmissionEmbed(form: Form, fields: FormField[], answers: Record<s
 
 /**
  * Re-downloads whatever's attached to the review message itself (Discord's own CDN
- * is the only place an image ever lives — nothing is staged on our side) so it can
+ * is the long-term home for images — submission_files only holds them until the
+ * review message is posted) so it can
  * ride along to the output channel when a reviewer approves. For Discord-native
  * submissions this is always empty, since image fields can't reach a Discord modal.
  */

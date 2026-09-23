@@ -4,8 +4,19 @@ import { parseCustomId } from "@discord-forms/shared";
 import { handlePanelSubmit, handleSessionContinue, handleSessionModalSubmit, handleSessionSelect } from "../flows/submissionFlow";
 import { handleSubmissionApprove, handleSubmissionReject } from "../flows/reviewFlow";
 
+const LATE_INTERACTION_MS = 2_000;
+
 export function registerInteractionCreate(client: BotClient) {
   client.on(Events.InteractionCreate, async (interaction: Interaction) => {
+    // Discord gives 3s from creation to ack. Anything already this old when it
+    // reaches us was delayed on our side (event-loop stall, swap thrash) or in
+    // transit — log it so "didn't respond" reports can be matched to a cause.
+    const ageMs = Date.now() - interaction.createdTimestamp;
+    if (ageMs > LATE_INTERACTION_MS) {
+      const id = "customId" in interaction ? interaction.customId : interaction.isCommand() ? interaction.commandName : "";
+      console.warn(`[interaction] arrived ${ageMs}ms after creation (type=${interaction.type} ${id}) — likely to miss the 3s ack`);
+    }
+
     try {
       if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);

@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { forms } from "@discord-forms/db";
-import { and, eq } from "drizzle-orm";
+import { forms, submissions } from "@discord-forms/db";
+import { and, desc, eq } from "drizzle-orm";
 import { FormTabs } from "@/components/FormTabs";
+import { DeliveryFailures } from "@/components/DeliveryFailures";
 import { Badge } from "@/components/ui/badge";
 
 export default async function FormLayout({
@@ -17,6 +18,13 @@ export default async function FormLayout({
   });
   if (!form) notFound();
 
+  const failed = await db
+    .select({ id: submissions.id, createdAt: submissions.createdAt, lastError: submissions.deliveryLastError })
+    .from(submissions)
+    .where(and(eq(submissions.formId, form.id), eq(submissions.deliveryStatus, "FAILED")))
+    .orderBy(desc(submissions.createdAt))
+    .limit(20);
+
   return (
     <div>
       <div className="flex items-center justify-between px-8 pt-8">
@@ -28,6 +36,10 @@ export default async function FormLayout({
           <span className="text-xs text-muted">{form.serialNumber}</span>
         </div>
       </div>
+      <DeliveryFailures
+        guildId={params.guildId}
+        failures={failed.map((f) => ({ ...f, createdAt: f.createdAt.toISOString() }))}
+      />
       <FormTabs guildId={params.guildId} formId={params.formId} />
       {children}
     </div>

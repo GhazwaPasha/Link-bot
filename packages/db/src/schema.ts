@@ -2,6 +2,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -27,12 +28,18 @@ export const submissionStatusEnum = pgEnum("SubmissionStatus", ["PENDING", "APPR
 export const integrationTypeEnum = pgEnum("IntegrationType", ["SHEETS", "WEBHOOK"]);
 export const panelButtonStyleEnum = pgEnum("PanelButtonStyle", ["PRIMARY", "SECONDARY", "SUCCESS", "DANGER"]);
 export const submissionSourceEnum = pgEnum("SubmissionSource", ["DISCORD", "WEB"]);
+export const deliveryStatusEnum = pgEnum("DeliveryStatus", ["PENDING", "DELIVERED", "FAILED"]);
 
 export type FormStatus = (typeof formStatusEnum.enumValues)[number];
 export type SubmissionStatus = (typeof submissionStatusEnum.enumValues)[number];
 export type IntegrationType = (typeof integrationTypeEnum.enumValues)[number];
 export type PanelButtonStyle = (typeof panelButtonStyleEnum.enumValues)[number];
 export type SubmissionSource = (typeof submissionSourceEnum.enumValues)[number];
+export type DeliveryStatus = (typeof deliveryStatusEnum.enumValues)[number];
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
 
 const createdAt = () => timestamp("created_at").notNull().defaultNow();
 const updatedAt = () =>
@@ -150,11 +157,20 @@ export const submissions = pgTable(
     answers: jsonb("answers").$type<Record<string, string>>().notNull().default({}),
     status: submissionStatusEnum("status").notNull().default("PENDING"),
     // "DISCORD" rows come through the modal flow (finalizeSubmission); "WEB" rows are
-    // posted directly to Discord by the web app itself at submit time (it already
-    // holds the bot token for read calls) — there's no async handoff to the bot for
-    // the initial post, only for review-button clicks, which route through Discord's
-    // gateway to the bot regardless of which process created the message.
+    // saved first by the web app, which then tries to post them to Discord itself.
+    // Review-button clicks route through Discord's gateway to the bot regardless of
+    // which process posted the message.
     source: submissionSourceEnum("source").notNull().default("DISCORD"),
+    // Outbox state for getting the submission's message into Discord. Only WEB rows
+    // ever start as PENDING: the web app saves before posting, so a Discord outage
+    // or 429 can't lose a submission — if its own attempt fails, the bot's delivery
+    // poller (apps/bot/src/deliveryPoller.ts) retries with backoff. Defaults to
+    // DELIVERED so Discord-native rows (posted synchronously by the bot) and every
+    // pre-existing row are untouched.
+    deliveryStatus: deliveryStatusEnum("delivery_status").notNull().default("DELIVERED"),
+    deliveryAttempts: integer("delivery_attempts").notNull().default(0),
+    deliveryLastError: text("delivery_last_error"),
+    deliveryNextAttemptAt: timestamp("delivery_next_attempt_at"),
     ip: text("ip"),
     reviewChannelId: text("review_channel_id"),
     reviewMessageId: text("review_message_id"),
@@ -167,7 +183,26 @@ export const submissions = pgTable(
   (table) => [
     index("submissions_form_id_idx").on(table.formId),
     index("submissions_guild_id_idx").on(table.guildId),
+    index("submissions_delivery_idx").on(table.deliveryStatus, table.deliveryNextAttemptAt),
   ],
+);
+
+// Web-form image uploads waiting to be delivered to Discord. Discord's CDN is still
+// the long-term home for them (see reviewFlow's loadReviewMessageAttachments) — rows
+// here only live until the submission's message is posted, then get deleted.
+export const submissionFiles = pgTable(
+  "submission_files",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    submissionId: text("submission_id")
+      .notNull()
+      .references(() => submissions.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    fileName: text("file_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    data: bytea("data").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [index("submission_files_submission_id_idx").on(table.submissionId)],
 );
 
 export const integrations = pgTable(
@@ -216,9 +251,14 @@ export const panelButtonsRelations = relations(panelButtons, ({ one }) => ({
   form: one(forms, { fields: [panelButtons.formId], references: [forms.id] }),
 }));
 
-export const submissionsRelations = relations(submissions, ({ one }) => ({
+export const submissionsRelations = relations(submissions, ({ one, many }) => ({
   form: one(forms, { fields: [submissions.formId], references: [forms.id] }),
   guild: one(guilds, { fields: [submissions.guildId], references: [guilds.guildId] }),
+  files: many(submissionFiles),
+}));
+
+export const submissionFilesRelations = relations(submissionFiles, ({ one }) => ({
+  submission: one(submissions, { fields: [submissionFiles.submissionId], references: [submissions.id] }),
 }));
 
 export const integrationsRelations = relations(integrations, ({ one }) => ({
@@ -231,4 +271,5 @@ export type Form = typeof forms.$inferSelect;
 export type Panel = typeof panels.$inferSelect;
 export type PanelButton = typeof panelButtons.$inferSelect;
 export type Submission = typeof submissions.$inferSelect;
+export type SubmissionFile = typeof submissionFiles.$inferSelect;
 export type Integration = typeof integrations.$inferSelect;

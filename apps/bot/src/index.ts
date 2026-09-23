@@ -7,6 +7,8 @@ import { registerGuildCreate } from "./events/guildCreate";
 import { registerGuildDelete } from "./events/guildDelete";
 import { registerInteractionCreate } from "./events/interactionCreate";
 import { startPanelPoller } from "./poller";
+import { startDeliveryPoller } from "./deliveryPoller";
+import { registerTelemetry } from "./telemetry";
 import { startHealthServer } from "./health";
 import { reconcileGuilds } from "./reconcileGuilds";
 
@@ -41,6 +43,7 @@ async function main() {
 
   const client = createClient();
   client.on(Events.Error, (err) => console.error("Discord client error:", err));
+  registerTelemetry(client);
 
   for (const command of commands) {
     client.commands.set(command.name, command);
@@ -58,6 +61,7 @@ async function main() {
       console.error("Failed to reconcile guilds on startup:", err),
     );
     startPanelPoller(client);
+    startDeliveryPoller(client);
   });
 
   await client.login(env.DISCORD_TOKEN);
